@@ -1,0 +1,245 @@
+# Documentação da API - Sistema de Gerenciamento de Equipamentos
+
+## Índice
+1. [Introdução](#introdução)
+2. [Autenticação](#autenticação)
+3. [Endpoints](#endpoints)
+   - [Usuários](#usuários)
+   - [Equipamentos](#equipamentos)
+   - [Ordens de Serviço](#ordens-de-serviço)
+   - [Arquivos](#arquivos)
+
+## Introdução
+
+Esta API fornece endpoints para gerenciar equipamentos, manutenções e ordens de serviço. A API utiliza JWT para autenticação e retorna os dados em formato JSON.
+
+### Base URL
+```
+http://localhost:3000/api
+```
+
+## Autenticação
+
+A API utiliza Bearer Token para autenticação. Para endpoints protegidos, inclua o token no header:
+
+```
+Authorization: Bearer <seu-token>
+```
+
+### Login
+```http
+POST /login
+
+{
+  "email": "usuario@exemplo.com",
+  "password": "senha123"
+}
+
+// Resposta
+{
+  "token": "jwt-token",
+  "user": {
+    "id": 1,
+    "name": "Usuario",
+    "email": "usuario@exemplo.com",
+    "role": "admin"
+  }
+}
+```
+
+## Endpoints
+
+### Usuários
+
+#### Criar Usuário
+```http
+POST /users
+
+{
+  "name": "Nome do Usuário",
+  "email": "usuario@exemplo.com",
+  "password": "senha123",
+  "role": "technician"
+}
+```
+
+#### Listar Usuários
+```http
+GET /users
+
+// Resposta
+[
+  {
+    "id": 1,
+    "name": "Nome do Usuário",
+    "email": "usuario@exemplo.com",
+    "role": "technician"
+  }
+]
+```
+
+### Equipamentos
+
+#### Criar Equipamento
+```http
+POST /equipment
+
+{
+  "name": "Máquina X",
+  "code": "EQ001",
+  "serial_number": "SN123456",
+  "department": "Produção",
+  "description": "Descrição do equipamento",
+  "maintenance_frequency": 30
+}
+```
+
+#### Listar Equipamentos
+```http
+GET /equipment
+
+// Parâmetros de Query
+?department=Produção    // Filtrar por departamento
+?status=active         // Filtrar por status
+?search=Máquina       // Buscar por nome/código
+
+// Resposta
+[
+  {
+    "id": 1,
+    "name": "Máquina X",
+    "code": "EQ001",
+    "department": "Produção",
+    "status": "active",
+    "last_maintenance": "2023-01-01T00:00:00.000Z"
+  }
+]
+```
+
+#### Detalhes do Equipamento
+```http
+GET /equipment/:id
+
+// Resposta
+{
+  "id": 1,
+  "name": "Máquina X",
+  "code": "EQ001",
+  "serial_number": "SN123456",
+  "department": "Produção",
+  "description": "Descrição do equipamento",
+  "status": "active",
+  "maintenance_history": [
+    {
+      "id": 1,
+      "maintenance_date": "2023-01-01T00:00:00.000Z",
+      "type": "preventive",
+      "description": "Manutenção preventiva realizada"
+    }
+  ]
+}
+```
+
+### Ordens de Serviço
+
+#### Criar Ordem de Serviço
+```http
+POST /service-orders
+
+{
+  "equipment_id": 1,
+  "description": "Manutenção preventiva",
+  "type": "preventive",
+  "priority": "medium",
+  "scheduled_for": "2023-12-01T10:00:00.000Z"
+}
+```
+
+#### Listar Ordens de Serviço
+```http
+GET /service-orders
+
+// Parâmetros de Query
+?status=pending       // Filtrar por status
+?equipment_id=1      // Filtrar por equipamento
+?date_start=2023-12-01&date_end=2023-12-31  // Filtrar por período
+
+// Resposta
+[
+  {
+    "id": 1,
+    "equipment": {
+      "id": 1,
+      "name": "Máquina X"
+    },
+    "description": "Manutenção preventiva",
+    "type": "preventive",
+    "status": "pending",
+    "scheduled_for": "2023-12-01T10:00:00.000Z"
+  }
+]
+```
+
+#### Atualizar Ordem de Serviço
+```http
+PUT /service-orders/:id
+
+{
+  "status": "completed",
+  "description": "Manutenção realizada com sucesso"
+}
+```
+
+### Arquivos
+
+#### Upload de Arquivo
+```http
+POST /files
+Content-Type: multipart/form-data
+
+file: [arquivo]
+
+// Resposta
+{
+  "id": 1,
+  "name": "documento.pdf",
+  "url": "/uploads/documento.pdf"
+}
+```
+
+## Códigos de Status
+
+- 200: Sucesso
+- 201: Criado com sucesso
+- 400: Erro de validação
+- 401: Não autorizado
+- 404: Não encontrado
+- 500: Erro interno do servidor
+
+## Exemplos de Uso com cURL
+
+### Login
+```bash
+curl -X POST http://localhost:3000/api/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"usuario@exemplo.com","password":"senha123"}'
+```
+
+### Criar Equipamento
+```bash
+curl -X POST http://localhost:3000/api/equipment \
+  -H "Authorization: Bearer <seu-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Máquina X",
+    "code": "EQ001",
+    "department": "Produção"
+  }'
+```
+
+### Upload de Arquivo
+```bash
+curl -X POST http://localhost:3000/api/files \
+  -H "Authorization: Bearer <seu-token>" \
+  -F "file=@/caminho/do/arquivo.pdf"
+```
