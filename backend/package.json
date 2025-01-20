@@ -1,38 +1,42 @@
 {
   "name": "equipment-management-backend",
   "version": "1.0.0",
-  "description": "Sistema de Gerenciamento de Equipamentos",
-  "main": "src/app.js",
+  "description": "Sistema de Gerenciamento de Equipamentos - Backend",
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
-    "setup": "npm install && npm run create-env && npm run migrate",
-    "create-env": "node ./scripts/create-env.js",
     "migrate": "sequelize db:migrate",
     "migrate:undo": "sequelize db:migrate:undo:all",
     "seed": "sequelize db:seed:all",
-    "seed:undo": "sequelize db:seed:undo:all",
-    "lint": "eslint src/**/*.js",
-    "lint:fix": "eslint src/**/*.js --fix"
+    "test": "jest"
   },
   "dependencies": {
+    "@sendgrid/mail": "^7.7.0",
+    "aws-sdk": "^2.1338.0",
     "bcryptjs": "^2.4.3",
+    "bull": "^4.10.4",
     "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "ejs": "^3.1.9",
+    "dotenv": "^16.0.3",
     "express": "^4.18.2",
-    "express-async-errors": "^3.1.1",
-    "jsonwebtoken": "^9.0.2",
+    "express-rate-limit": "^6.7.0",
+    "helmet": "^6.0.1",
+    "ioredis": "^5.3.1",
+    "jsonwebtoken": "^9.0.0",
     "multer": "^1.4.5-lts.1",
-    "nodemailer": "^6.9.7",
-    "pg": "^8.11.3",
+    "pg": "^8.10.0",
     "pg-hstore": "^2.3.4",
-    "sequelize": "^6.35.1",
-    "yup": "^1.3.2"
+    "qrcode": "^1.5.1",
+    "sequelize": "^6.30.0",
+    "sharp": "^0.32.0",
+    "socket.io": "^4.6.1",
+    "winston": "^3.8.2",
+    "yup": "^1.0.2"
   },
   "devDependencies": {
-    "eslint": "^8.54.0",
-    "nodemon": "^3.0.1",
-    "sequelize-cli": "^6.6.2"
+    "eslint": "^8.36.0",
+    "jest": "^29.5.0",
+    "nodemon": "^2.0.22",
+    "sequelize-cli": "^6.6.0",
+    "supertest": "^6.3.3"
   }
 }

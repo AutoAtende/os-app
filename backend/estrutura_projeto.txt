@@ -1,0 +1,120 @@
+Estrutura de Arquivos do Projeto
+
+Backend:
+- app.js
+- config
+  - database.js
+  - multer.js
+  - redis.js
+- controllers
+  - AuthController.js
+  - DashboardController.js
+  - EquipmentController.js
+  - MaintenanceController.js
+  - NotificationController.js
+  - ReportController.js
+  - ServiceOrderController.js
+  - UserController.js
+- database
+  - index.js
+  - migrations
+    - 01-create-users.js
+    - 02-create-equipment.js
+    - 03-create-maintenance.js
+    - 04-create-notifications.js
+    - 05-create-reports.js
+- index.js
+- jobs
+  - jobProcessor.js
+  - processors
+    - index.js
+- middlewares
+  - auth.js
+  - errorHandler.js
+  - security.js
+  - validate.js
+- models
+  - Equipment.js
+  - File.js
+  - MaintenanceHistory.js
+  - ServiceOrder.js
+  - User.js
+- routes
+  - index.js
+- services
+  - AuditService.js
+  - CacheService.js
+  - EmailService.js
+  - FileService.js
+  - MediaService.js
+  - NotificationService.js
+  - PDFService.js
+  - PushNotificationService.js
+  - QRCodeService.js
+  - ReportService.js
+  - S3Service.js
+  - WebSocketService.js
+- utils
+  - logger.js
+- validations
+  - schemas.js
+- views
+  - emails
+    - maintenance-complete.ejs
+    - maintenance-notification.ejs
+- websocket
+  - webSocketMananger.js
+
+Frontend:
+- App.jsx
+- components
+  - .DS_Store
+  - Layout
+    - Layout.jsx
+- contexts
+  - AuthContext.js
+- main.jsx
+- pages
+  - Dashboard
+    - Dashboard.jsx
+  - Equipment
+    - EquipmentForm.jsx
+    - EquipmentList.jsx
+    - EquipmentQRCode.jsx
+  - Login
+    - Login.jsx
+  - Maintenance
+    - MaintenaceList.jsx
+    - MaintenanceForm.jsx
+  - Profile
+    - Profile.jsx
+  - ServiceOrder
+    - ServiceOrderForm.jsx
+    - ServiceOrderList.jsx
+  - Settings
+    - Settings.jsx
+  - User
+    - UserForm.jsx
+    - UserList.jsx
+- routes
+  - index.jsx
+- services
+  - api.jsx
+  - cacheService.jsx
+  - dashboardService.jsx
+  - i18nService.jsx
+  - notificationService.jsx
+  - qrcodeService.jsx
+  - reportService.jsx
+  - storageService.jsx
+  - themeService.jsx
+  - uploadService.jsx
+  - validationService.jsx
+- utils
+  - formatters.jsx
+
+Mobile:
+- DashboardScreen.jsx
+- MainScreen.jsx
+- MaintenanceForm.jsx
+- MaintenanceHistory.jsx

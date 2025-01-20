@@ -52,6 +52,4 @@ class UserController {
   }
 }
 
-module.exports = {
-    UserController: new UserController(),
-  };
+module.exports = new UserController();

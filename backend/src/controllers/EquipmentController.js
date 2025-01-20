@@ -104,6 +104,4 @@ class EquipmentController {
   }
 }
 
-module.exports = {
-    EquipmentController: new EquipmentController(),
-  };
+module.exports = new EquipmentController();

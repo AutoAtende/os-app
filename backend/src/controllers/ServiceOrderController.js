@@ -108,6 +108,4 @@ class ServiceOrderController {
   }
 }
 
-module.exports = {
-  ServiceOrderController: new ServiceOrderController(),
-};
+module.exports = new ServiceOrderController();
