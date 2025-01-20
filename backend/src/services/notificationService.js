@@ -1,214 +1,187 @@
-const { User, Equipment, ServiceOrder } = require('../models');
+const AWS = require('aws-sdk');
 const nodemailer = require('nodemailer');
-const { Expo } = require('expo-server-sdk');
-const ejs = require('ejs');
-const path = require('path');
+const cron = require('node-cron');
+const { Equipment, Maintenance, User } = require('../models');
+const { Op } = require('sequelize');
+const logger = require('../utils/logger');
 
 class NotificationService {
   constructor() {
-    this.emailTransporter = nodemailer.createTransport({
+    this.s3 = new AWS.S3({
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      region: process.env.AWS_REGION
+    });
+
+    this.transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: process.env.SMTP_PORT,
       auth: {
         user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
+        pass: process.env.SMTP_PASS
+      }
     });
 
-    this.expo = new Expo({ accessToken: process.env.EXPO_ACCESS_TOKEN });
+    // Inicia os jobs de verificação
+    this.initializeJobs();
   }
 
-  async sendMaintenanceNotification(serviceOrder, notificationType) {
+  initializeJobs() {
+    // Verifica manutenções pendentes diariamente às 8h
+    cron.schedule('0 8 * * *', () => {
+      this.checkPendingMaintenances();
+    });
+
+    // Verifica equipamentos com manutenções frequentes semanalmente
+    cron.schedule('0 9 * * 1', () => {
+      this.checkFrequentMaintenances();
+    });
+  }
+
+  async uploadFile(file, folder = 'general') {
     try {
-      const equipment = await Equipment.findByPk(serviceOrder.equipment_id);
-      const users = await this.getNotificationRecipients(serviceOrder);
+      const fileName = `${folder}/${Date.now()}-${file.originalname}`;
+      
+      const params = {
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: fileName,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+        ACL: 'public-read'
+      };
 
-      const notifications = users.map(user => 
-        this.sendMultiChannelNotification({
-          user,
-          equipment,
-          serviceOrder,
-          type: notificationType
-        })
-      );
-
-      await Promise.all(notifications);
+      const result = await this.s3.upload(params).promise();
+      return result.Location;
     } catch (error) {
-      console.error('Erro ao enviar notificações:', error);
-      throw new Error('Falha ao enviar notificações');
+      logger.error('Erro no upload para S3:', error);
+      throw new Error('Falha no upload do arquivo');
     }
   }
 
-  async getNotificationRecipients(serviceOrder) {
-    const recipients = await User.findAll({
-      where: {
-        [Op.or]: [
-          { role: ['admin', 'manager'] },
-          { id: serviceOrder.assigned_to }
+  async deleteFile(fileUrl) {
+    try {
+      const key = fileUrl.split(`${process.env.AWS_BUCKET_NAME}/`)[1];
+      
+      await this.s3.deleteObject({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: key
+      }).promise();
+      
+      return true;
+    } catch (error) {
+      logger.error('Erro ao deletar arquivo do S3:', error);
+      throw new Error('Falha ao deletar arquivo');
+    }
+  }
+
+  async checkPendingMaintenances() {
+    try {
+      const today = new Date();
+      const maintenances = await Maintenance.findAll({
+        where: {
+          status: 'pending',
+          scheduled_for: {
+            [Op.lte]: today
+          }
+        },
+        include: [
+          {
+            model: Equipment,
+            attributes: ['name', 'code', 'department']
+          }
         ]
+      });
+
+      if (maintenances.length > 0) {
+        // Busca administradores
+        const admins = await User.findAll({
+          where: { role: 'admin' }
+        });
+
+        // Envia notificações
+        for (const admin of admins) {
+          await this.sendPendingMaintenanceEmail(admin, maintenances);
+        }
       }
-    });
-
-    return recipients;
-  }
-
-  async sendMultiChannelNotification({ user, equipment, serviceOrder, type }) {
-    const notificationData = this.getNotificationContent(type, {
-      userName: user.name,
-      equipmentName: equipment.name,
-      equipmentCode: equipment.code,
-      serviceOrder
-    });
-
-    const promises = [];
-
-    // Email
-    if (user.email) {
-      promises.push(
-        this.sendEmailNotification(user.email, notificationData)
-      );
-    }
-
-    // Push Notification
-    if (user.pushToken) {
-      promises.push(
-        this.sendPushNotification(user.pushToken, notificationData)
-      );
-    }
-
-    await Promise.all(promises);
-  }
-
-  getNotificationContent(type, data) {
-    const templates = {
-      maintenance_scheduled: {
-        subject: `Manutenção Agendada - ${data.equipmentName}`,
-        title: 'Nova Manutenção Agendada',
-        template: 'maintenance-notification',
-        priority: 'high'
-      },
-      maintenance_reminder: {
-        subject: `Lembrete de Manutenção - ${data.equipmentName}`,
-        title: 'Lembrete de Manutenção',
-        template: 'maintenance-reminder',
-        priority: 'normal'
-      },
-      maintenance_complete: {
-        subject: `Manutenção Concluída - ${data.equipmentName}`,
-        title: 'Manutenção Finalizada',
-        template: 'maintenance-complete',
-        priority: 'normal'
-      },
-      maintenance_overdue: {
-        subject: `Manutenção Atrasada - ${data.equipmentName}`,
-        title: 'Alerta de Manutenção Atrasada',
-        template: 'maintenance-overdue',
-        priority: 'high'
-      }
-    };
-
-    return {
-      ...templates[type],
-      data
-    };
-  }
-
-  async sendEmailNotification(email, notificationData) {
-    const templatePath = path.join(__dirname, '../views/emails', `${notificationData.template}.ejs`);
-    const html = await ejs.renderFile(templatePath, notificationData.data);
-
-    return this.emailTransporter.sendMail({
-      from: process.env.SMTP_FROM,
-      to: email,
-      subject: notificationData.subject,
-      html
-    });
-  }
-
-  async sendPushNotification(pushToken, notificationData) {
-    if (!Expo.isExpoPushToken(pushToken)) {
-      console.error(`Push token inválido ${pushToken}`);
-      return;
-    }
-
-    const message = {
-      to: pushToken,
-      sound: 'default',
-      title: notificationData.title,
-      body: this.generateNotificationBody(notificationData),
-      data: notificationData.data,
-      priority: notificationData.priority
-    };
-
-    try {
-      await this.expo.sendPushNotificationsAsync([message]);
     } catch (error) {
-      console.error('Erro ao enviar push notification:', error);
+      logger.error('Erro ao verificar manutenções pendentes:', error);
     }
   }
 
-  generateNotificationBody(notificationData) {
-    const { data } = notificationData;
-    switch (notificationData.template) {
-      case 'maintenance-notification':
-        return `Manutenção agendada para ${data.equipmentName} (${data.equipmentCode}) em ${new Date(data.serviceOrder.scheduled_for).toLocaleDateString()}`;
-      case 'maintenance-reminder':
-        return `Lembrete: Manutenção programada para amanhã - ${data.equipmentName}`;
-      case 'maintenance-complete':
-        return `Manutenção finalizada em ${data.equipmentName}`;
-      case 'maintenance-overdue':
-        return `Atenção: Manutenção atrasada em ${data.equipmentName}`;
-      default:
-        return '';
-    }
-  }
+  async checkFrequentMaintenances() {
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  async checkUpcomingMaintenances() {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
+      // Busca equipamentos com mais de 3 manutenções nos últimos 30 dias
+      const equipments = await Equipment.findAll({
+        include: [{
+          model: Maintenance,
+          where: {
+            created_at: {
+              [Op.gte]: thirtyDaysAgo
+            }
+          }
+        }],
+        having: sequelize.literal('COUNT(Maintenances.id) > 3'),
+        group: ['Equipment.id']
+      });
 
-    const serviceOrders = await ServiceOrder.findAll({
-      where: {
-        scheduled_for: {
-          [Op.gte]: new Date(),
-          [Op.lt]: tomorrow
-        },
-        status: 'pending'
-      },
-      include: [
-        {
-          model: Equipment,
-          as: 'equipment'
+      if (equipments.length > 0) {
+        const admins = await User.findAll({ where: { role: 'admin' } });
+        for (const admin of admins) {
+          await this.sendFrequentMaintenanceAlert(admin, equipments);
         }
-      ]
-    });
-
-    for (const serviceOrder of serviceOrders) {
-      await this.sendMaintenanceNotification(serviceOrder, 'maintenance_reminder');
+      }
+    } catch (error) {
+      logger.error('Erro ao verificar manutenções frequentes:', error);
     }
   }
 
-  async checkOverdueMaintenances() {
-    const today = new Date();
-    
-    const serviceOrders = await ServiceOrder.findAll({
-      where: {
-        scheduled_for: {
-          [Op.lt]: today
-        },
-        status: 'pending'
-      },
-      include: [
-        {
-          model: Equipment,
-          as: 'equipment'
-        }
-      ]
-    });
+  async sendPendingMaintenanceEmail(user, maintenances) {
+    const mailOptions = {
+      from: process.env.SMTP_FROM,
+      to: user.email,
+      subject: 'Manutenções Pendentes - Atenção Necessária',
+      html: `
+        <h2>Manutenções Pendentes</h2>
+        <p>As seguintes manutenções estão pendentes e requerem atenção:</p>
+        <ul>
+          ${maintenances.map(m => `
+            <li>
+              <strong>${m.Equipment.name}</strong> (${m.Equipment.code})<br>
+              Departamento: ${m.Equipment.department}<br>
+              Agendado para: ${m.scheduled_for.toLocaleDateString()}
+            </li>
+          `).join('')}
+        </ul>
+      `
+    };
 
-    for (const serviceOrder of serviceOrders) {
-      await this.sendMaintenanceNotification(serviceOrder, 'maintenance_overdue');
-    }
+    await this.transporter.sendMail(mailOptions);
+  }
+
+  async sendFrequentMaintenanceAlert(user, equipments) {
+    const mailOptions = {
+      from: process.env.SMTP_FROM,
+      to: user.email,
+      subject: 'Alerta - Equipamentos com Manutenções Frequentes',
+      html: `
+        <h2>Equipamentos com Manutenções Frequentes</h2>
+        <p>Os seguintes equipamentos apresentaram mais de 3 manutenções nos últimos 30 dias:</p>
+        <ul>
+          ${equipments.map(e => `
+            <li>
+              <strong>${e.name}</strong> (${e.code})<br>
+              Departamento: ${e.department}<br>
+              Total de manutenções: ${e.Maintenances.length}
+            </li>
+          `).join('')}
+        </ul>
+      `
+    };
+
+    await this.transporter.sendMail(mailOptions);
   }
 }
 

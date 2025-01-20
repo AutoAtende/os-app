@@ -1,114 +1,145 @@
-const PDFDocument = require('pdfkit');
 const ExcelJS = require('exceljs');
+const { Equipment, Maintenance, User } = require('../models');
 const { Op } = require('sequelize');
-const { Equipment, ServiceOrder, MaintenanceHistory } = require('../models');
 
 class ReportService {
-  async generateMaintenanceReport(startDate, endDate, format = 'pdf') {
-    const data = await this.getMaintenanceData(startDate, endDate);
-    
-    return format === 'pdf' 
-      ? await this.generatePDFReport(data)
-      : await this.generateExcelReport(data);
-  }
+  async generateMaintenanceReport(startDate, endDate, department = null) {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Manutenções');
 
-  async getMaintenanceData(startDate, endDate) {
-    const equipment = await Equipment.findAll({
+    // Define cabeçalhos
+    worksheet.columns = [
+      { header: 'Equipamento', key: 'equipment', width: 20 },
+      { header: 'Código', key: 'code', width: 15 },
+      { header: 'Departamento', key: 'department', width: 15 },
+      { header: 'Tipo', key: 'type', width: 15 },
+      { header: 'Data', key: 'date', width: 15 },
+      { header: 'Status', key: 'status', width: 15 },
+      { header: 'Técnico', key: 'technician', width: 20 },
+      { header: 'Custo', key: 'cost', width: 15 }
+    ];
+
+    // Aplica estilo aos cabeçalhos
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE0E0E0' }
+    };
+
+    // Busca dados
+    const query = {
+      where: {
+        created_at: {
+          [Op.between]: [startDate, endDate]
+        }
+      },
       include: [
         {
-          model: ServiceOrder,
-          as: 'service_orders',
-          where: {
-            created_at: {
-              [Op.between]: [startDate, endDate]
-            }
-          },
-          required: false
+          model: Equipment,
+          ...(department && {
+            where: { department }
+          })
         },
         {
-          model: MaintenanceHistory,
-          as: 'maintenance_history',
-          where: {
-            maintenance_date: {
-              [Op.between]: [startDate, endDate]
-            }
-          },
-          required: false
+          model: User,
+          as: 'technician',
+          attributes: ['name']
+        }
+      ]
+    };
+
+    const maintenances = await Maintenance.findAll(query);
+
+    // Adiciona dados
+    maintenances.forEach(maintenance => {
+      worksheet.addRow({
+        equipment: maintenance.Equipment.name,
+        code: maintenance.Equipment.code,
+        department: maintenance.Equipment.department,
+        type: maintenance.type,
+        date: maintenance.maintenance_date.toLocaleDateString(),
+        status: maintenance.status,
+        technician: maintenance.technician?.name || 'N/A',
+        cost: maintenance.cost || 0
+      });
+    });
+
+    // Aplica formatação condicional para status
+    worksheet.addConditionalFormatting({
+      ref: 'F2:F1000',
+      rules: [
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"completed"'],
+          style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF90EE90' } } }
+        },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          formulae: ['"pending"'],
+          style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFCCCB' } } }
         }
       ]
     });
 
-    return equipment.map(eq => ({
-      id: eq.id,
-      name: eq.name,
-      code: eq.code,
-      department: eq.department,
-      maintenanceCount: eq.maintenance_history.length,
-      totalCost: eq.maintenance_history.reduce((sum, m) => sum + (m.cost || 0), 0),
-      serviceOrders: eq.service_orders.length,
-      lastMaintenance: eq.last_maintenance,
-      status: eq.status
-    }));
-  }
+    // Formata coluna de custo
+    worksheet.getColumn('cost').numFmt = '"R$ "#,##0.00';
 
-  async generatePDFReport(data) {
-    return new Promise((resolve, reject) => {
-      try {
-        const doc = new PDFDocument();
-        const chunks = [];
-
-        doc.on('data', chunk => chunks.push(chunk));
-        doc.on('end', () => resolve(Buffer.concat(chunks)));
-
-        // Cabeçalho
-        doc.fontSize(20).text('Relatório de Manutenção de Equipamentos', {
-          align: 'center'
-        });
-        doc.moveDown();
-
-        // Sumário
-        const totalEquipments = data.length;
-        const totalMaintenances = data.reduce((sum, eq) => sum + eq.maintenanceCount, 0);
-        const totalCost = data.reduce((sum, eq) => sum + eq.totalCost, 0);
-
-        doc.fontSize(12).text(`Total de Equipamentos: ${totalEquipments}`);
-        doc.text(`Total de Manutenções: ${totalMaintenances}`);
-        doc.text(`Custo Total: R$ ${totalCost.toFixed(2)}`);
-        doc.moveDown();
-
-        // Detalhes por equipamento
-        data.forEach(eq => {
-          doc.text(`Equipamento: ${eq.name} (${eq.code})`);
-          doc.text(`Departamento: ${eq.department}`);
-          doc.text(`Manutenções: ${eq.maintenanceCount}`);
-          doc.text(`Custo Total: R$ ${eq.totalCost.toFixed(2)}`);
-          doc.text(`Status: ${eq.status}`);
-          doc.moveDown();
-        });
-
-        doc.end();
-      } catch (error) {
-        reject(error);
+    // Adiciona totais
+    const lastRow = worksheet.rowCount + 2;
+    worksheet.addRow(['Total de Manutenções:', maintenances.length]);
+    worksheet.addRow([
+      'Custo Total:',
+      {
+        formula: `SUM(H2:H${worksheet.rowCount-2})`,
+        numFmt: '"R$ "#,##0.00'
       }
-    });
+    ]);
+
+    // Retorna o buffer
+    return await workbook.xlsx.writeBuffer();
   }
 
-  async generateExcelReport(data) {
+  async generateEquipmentReport() {
     const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Manutenções');
+    const worksheet = workbook.addWorksheet('Equipamentos');
 
     worksheet.columns = [
+      { header: 'Nome', key: 'name', width: 20 },
       { header: 'Código', key: 'code', width: 15 },
-      { header: 'Nome', key: 'name', width: 30 },
-      { header: 'Departamento', key: 'department', width: 20 },
-      { header: 'Qtd. Manutenções', key: 'maintenanceCount', width: 15 },
-      { header: 'Custo Total', key: 'totalCost', width: 15 },
-      { header: 'Ordens de Serviço', key: 'serviceOrders', width: 15 },
-      { header: 'Última Manutenção', key: 'lastMaintenance', width: 20 },
-      { header: 'Status', key: 'status', width: 15 }
+      { header: 'Departamento', key: 'department', width: 15 },
+      { header: 'Status', key: 'status', width: 15 },
+      { header: 'Total Manutenções', key: 'maintenances', width: 18 },
+      { header: 'Última Manutenção', key: 'lastMaintenance', width: 18 },
+      { header: 'Custo Total', key: 'totalCost', width: 15 }
     ];
 
-    worksheet.addRows(data);
+    const equipments = await Equipment.findAll({
+      include: [{
+        model: Maintenance,
+        attributes: ['maintenance_date', 'cost']
+      }]
+    });
+
+    equipments.forEach(equipment => {
+      worksheet.addRow({
+        name: equipment.name,
+        code: equipment.code,
+        department: equipment.department,
+        status: equipment.status,
+        maintenances: equipment.Maintenances.length,
+        lastMaintenance: equipment.Maintenances.length ? 
+          new Date(Math.max(...equipment.Maintenances.map(m => m.maintenance_date))).toLocaleDateString() : 
+          'N/A',
+        totalCost: equipment.Maintenances.reduce((sum, m) => sum + (m.cost || 0), 0)
+      });
+    });
+
+    // Estilização e formatação
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getColumn('totalCost').numFmt = '"R$ "#,##0.00';
 
     return await workbook.xlsx.writeBuffer();
   }

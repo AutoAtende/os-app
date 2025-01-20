@@ -1,165 +1,203 @@
-const { Equipment, ServiceOrder, MaintenanceHistory } = require('../models');
-const NotificationService = require('../services/notificationService');
-const MediaService = require('../services/mediaService');
-const ReportService = require('../services/reportService');
+const { Maintenance, Equipment, User } = require('../models');
+const NotificationService = require('../services/NotificationService');
+const S3Service = require('../services/S3Service');
 const { maintenanceHistorySchema } = require('../validations/schemas');
+const logger = require('../utils/logger');
 
 class MaintenanceController {
-  async createServiceOrder(req, res) {
-    const {
-      equipment_id,
-      description,
-      type,
-      priority,
-      scheduled_for,
-      notes
-    } = req.body;
-
-    const equipment = await Equipment.findByPk(equipment_id);
-    if (!equipment) {
-      return res.status(404).json({ error: 'Equipamento não encontrado' });
-    }
-
-    let serviceOrder;
-    let uploadedFiles = [];
-
+  async store(req, res) {
     try {
-      // Upload de fotos
-      if (req.files?.photos) {
-        const photoPromises = req.files.photos.map(photo => 
-          MediaService.uploadPhoto(photo)
-        );
-        const photos = await Promise.all(photoPromises);
-        uploadedFiles.push(...photos);
-      }
-
-      // Upload de arquivos
-      if (req.files?.attachments) {
-        const filePromises = req.files.attachments.map(file =>
-          MediaService.uploadFile(file)
-        );
-        const files = await Promise.all(filePromises);
-        uploadedFiles.push(...files);
-      }
-
-      serviceOrder = await ServiceOrder.create({
+      const {
         equipment_id,
         description,
         type,
-        priority,
-        scheduled_for,
         notes,
-        created_by: req.userId,
+        cost
+      } = req.body;
+
+      // Valida equipamento
+      const equipment = await Equipment.findByPk(equipment_id);
+      if (!equipment) {
+        return res.status(404).json({ error: 'Equipamento não encontrado' });
+      }
+
+      // Processa fotos
+      let photoUrls = [];
+      if (req.files?.photos) {
+        const uploadPromises = req.files.photos.map(photo => 
+          S3Service.uploadFile(photo, 'maintenance-photos')
+        );
+        photoUrls = await Promise.all(uploadPromises);
+      }
+
+      // Processa documentos
+      let documentUrls = [];
+      if (req.files?.documents) {
+        const uploadPromises = req.files.documents.map(doc => 
+          S3Service.uploadFile(doc, 'maintenance-documents')
+        );
+        documentUrls = await Promise.all(uploadPromises);
+      }
+
+      // Cria registro de manutenção
+      const maintenance = await Maintenance.create({
+        equipment_id,
+        description,
+        type,
         status: 'pending',
-        photos: uploadedFiles.filter(f => f.type?.startsWith('image/')),
-        attachments: uploadedFiles.filter(f => !f.type?.startsWith('image/'))
+        notes,
+        cost: cost || 0,
+        photos: photoUrls,
+        documents: documentUrls,
+        created_by: req.userId
       });
 
-      // Atualiza o status do equipamento
-      await equipment.update({ status: 'maintenance' });
+      // Atualiza status do equipamento
+      await equipment.update({ 
+        status: 'maintenance',
+        last_maintenance: new Date()
+      });
 
-      // Envia notificações
-      await NotificationService.sendMaintenanceNotification(
-        serviceOrder,
-        'maintenance_scheduled'
-      );
+      // Notifica responsáveis
+      await NotificationService.notifyMaintenanceCreated(maintenance);
 
-      return res.status(201).json(serviceOrder);
+      return res.status(201).json(maintenance);
+
     } catch (error) {
-      // Em caso de erro, remove os arquivos já enviados
-      if (uploadedFiles.length > 0) {
-        await Promise.all(
-          uploadedFiles.map(file => MediaService.deleteFile(file.key))
-        );
+      logger.error('Erro ao criar manutenção:', error);
+      return res.status(500).json({ error: 'Erro ao registrar manutenção' });
+    }
+  }
+
+  async index(req, res) {
+    try {
+      const { 
+        status,
+        equipment_id,
+        start_date,
+        end_date,
+        type
+      } = req.query;
+
+      const where = {};
+
+      if (status) where.status = status;
+      if (equipment_id) where.equipment_id = equipment_id;
+      if (type) where.type = type;
+      
+      if (start_date && end_date) {
+        where.created_at = {
+          [Op.between]: [start_date, end_date]
+        };
       }
-      throw error;
+
+      // Se não for admin, filtra por departamento
+      if (req.userRole !== 'admin') {
+        const user = await User.findByPk(req.userId);
+        where['$Equipment.department$'] = user.department;
+      }
+
+      const maintenances = await Maintenance.findAll({
+        where,
+        include: [
+          {
+            model: Equipment,
+            attributes: ['id', 'name', 'code', 'department']
+          },
+          {
+            model: User,
+            as: 'technician',
+            attributes: ['id', 'name']
+          }
+        ],
+        order: [['created_at', 'DESC']]
+      });
+
+      return res.json(maintenances);
+
+    } catch (error) {
+      logger.error('Erro ao listar manutenções:', error);
+      return res.status(500).json({ error: 'Erro ao listar manutenções' });
     }
   }
 
-  async completeServiceOrder(req, res) {
-    const { id } = req.params;
-    const { notes, cost, parts_replaced } = req.body;
+  async update(req, res) {
+    try {
+      const { id } = req.params;
+      const {
+        status,
+        notes,
+        cost,
+        completion_notes
+      } = req.body;
 
-    const serviceOrder = await ServiceOrder.findByPk(id, {
-      include: [{ model: Equipment, as: 'equipment' }]
-    });
+      const maintenance = await Maintenance.findByPk(id, {
+        include: [{ model: Equipment }]
+      });
 
-    if (!serviceOrder) {
-      return res.status(404).json({ error: 'Ordem de serviço não encontrada' });
+      if (!maintenance) {
+        return res.status(404).json({ error: 'Manutenção não encontrada' });
+      }
+
+      // Se estiver completando a manutenção
+      if (status === 'completed' && maintenance.status !== 'completed') {
+        // Atualiza status do equipamento
+        await maintenance.Equipment.update({ status: 'active' });
+        
+        // Notifica sobre conclusão
+        await NotificationService.notifyMaintenanceCompleted(maintenance);
+      }
+
+      await maintenance.update({
+        status,
+        notes,
+        cost,
+        completion_notes,
+        completed_at: status === 'completed' ? new Date() : null,
+        completed_by: status === 'completed' ? req.userId : null
+      });
+
+      return res.json(maintenance);
+
+    } catch (error) {
+      logger.error('Erro ao atualizar manutenção:', error);
+      return res.status(500).json({ error: 'Erro ao atualizar manutenção' });
     }
-
-    await serviceOrder.update({
-      status: 'completed',
-      completed_at: new Date(),
-      notes,
-      cost,
-      parts_replaced
-    });
-
-    // Registra no histórico
-    await MaintenanceHistory.create({
-      equipment_id: serviceOrder.equipment_id,
-      maintenance_date: serviceOrder.completed_at,
-      type: serviceOrder.type,
-      description: serviceOrder.description,
-      cost: serviceOrder.cost,
-      parts_replaced: serviceOrder.parts_replaced,
-      performed_by: req.userId
-    });
-
-    // Atualiza o equipamento
-    await serviceOrder.equipment.update({
-      status: 'active',
-      last_maintenance: serviceOrder.completed_at
-    });
-
-    // Envia notificação
-    await NotificationService.sendMaintenanceNotification(
-      serviceOrder,
-      'maintenance_complete'
-    );
-
-    return res.json(serviceOrder);
   }
 
-  async generateReport(req, res) {
-    const { start_date, end_date, format = 'pdf' } = req.query;
+  async show(req, res) {
+    try {
+      const { id } = req.params;
 
-    const report = await ReportService.generateMaintenanceReport(
-      new Date(start_date),
-      new Date(end_date),
-      format
-    );
+      const maintenance = await Maintenance.findByPk(id, {
+        include: [
+          {
+            model: Equipment,
+            attributes: ['id', 'name', 'code', 'department']
+          },
+          {
+            model: User,
+            as: 'technician',
+            attributes: ['id', 'name']
+          },
+          {
+            model: User,
+            as: 'creator',
+            attributes: ['id', 'name']
+          }
+        ]
+      });
 
-    res.setHeader('Content-Disposition', `attachment; filename=maintenance-report.${format}`);
-    
-    if (format === 'pdf') {
-      res.setHeader('Content-Type', 'application/pdf');
-    } else {
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      if (!maintenance) {
+        return res.status(404).json({ error: 'Manutenção não encontrada' });
+      }
+
+      return res.json(maintenance);
+
+    } catch (error) {
+      logger.error('Erro ao buscar manutenção:', error);
+      return res.status(500).json({ error: 'Erro ao buscar manutenção' });
     }
-
-    return res.send(report);
-  }
-
-  async getEquipmentStats(req, res) {
-    const stats = await Equipment.findAll({
-      attributes: [
-        'department',
-        [sequelize.fn('COUNT', sequelize.col('id')), 'total'],
-        [sequelize.fn('SUM', sequelize.col('maintenance_history.cost')), 'totalCost'],
-        [sequelize.fn('COUNT', sequelize.col('maintenance_history.id')), 'maintenanceCount']
-      ],
-      include: [{
-        model: MaintenanceHistory,
-        as: 'maintenance_history',
-        attributes: []
-      }],
-      group: ['department'],
-      raw: true
-    });
-
-    return res.json(stats);
   }
 }
 
