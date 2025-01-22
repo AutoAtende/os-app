@@ -4,7 +4,7 @@ const multer = require('multer');
 const multerConfig = require('../config/multer');
 
 // Middlewares
-const AuthMiddleware = require('../middlewares/AuthMiddleware');
+const AuthMiddleware = require('../middlewares/auth');
 const validate = require('../middlewares/validate');
 const schemas = require('../validations/schemas');
 
