@@ -16,8 +16,10 @@
     "bcryptjs": "^2.4.3",
     "bull": "^4.10.4",
     "cors": "^2.8.5",
+    "date-fns": "^2.30.0",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
+    "express-async-errors": "^3.1.1",
     "express-rate-limit": "^6.7.0",
     "helmet": "^6.0.1",
     "ioredis": "^5.3.1",
@@ -29,7 +31,9 @@
     "sequelize": "^6.30.0",
     "sharp": "^0.32.0",
     "socket.io": "^4.6.1",
+    "swagger-ui-express": "^5.0.0",
     "winston": "^3.8.2",
+    "winston-daily-rotate-file": "^4.7.1",
     "yup": "^1.0.2"
   },
   "devDependencies": {
