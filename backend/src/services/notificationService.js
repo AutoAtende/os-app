@@ -1,7 +1,9 @@
 const AWS = require('aws-sdk');
 const nodemailer = require('nodemailer');
 const cron = require('node-cron');
-const { Equipment, Maintenance, User } = require('../models');
+const {Equipment} = require('../models/Equipment');
+const {Maintenance} = require('../models/Maintenance')
+const {User} = require('../models/User');
 const { Op } = require('sequelize');
 const logger = require('../utils/logger');
 

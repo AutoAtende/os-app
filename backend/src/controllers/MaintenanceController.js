@@ -1,4 +1,6 @@
-const { Maintenance, Equipment, User } = require('../models');
+const {Equipment} = require('../models/Equipment');
+const {Maintenance} = require('../models/Maintenance')
+const {User} = require('../models/User');
 const NotificationService = require('../services/NotificationService');
 const S3Service = require('../services/S3Service');
 const { maintenanceHistorySchema } = require('../validations/schemas');

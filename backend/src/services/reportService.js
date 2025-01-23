@@ -1,5 +1,7 @@
 const ExcelJS = require('exceljs');
-const { Equipment, Maintenance, User } = require('../models');
+const {Equipment} = require('../models/Equipment');
+const {Maintenance} = require('../models/Maintenance')
+const {User} = require('../models/User');
 const { Op } = require('sequelize');
 
 class ReportService {

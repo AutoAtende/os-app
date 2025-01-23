@@ -1,4 +1,6 @@
-const { Equipment, MaintenanceHistory } = require('../models');
+const {Equipment} = require('../models/Equipment');
+const {MaintenanceHistory} = require('../models/MaintenanceHistory');
+const {User} = require('../models/User');
 const QRCode = require('qrcode');
 
 class EquipmentController {

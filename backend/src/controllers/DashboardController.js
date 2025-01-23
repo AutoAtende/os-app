@@ -1,4 +1,6 @@
-const { Equipment, Maintenance, User } = require('../models');
+const {Equipment} = require('../models/Equipment');
+const {Maintenance} = require('../models/Maintenance')
+const {User} = require('../models/User');
 const { Op, Sequelize } = require('sequelize');
 const CacheService = require('../services/CacheService');
 const logger = require('../utils/logger');
