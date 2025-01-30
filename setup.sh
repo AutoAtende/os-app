@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Configurações
-GITHUB_TOKEN="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"
+GITHUB_TOKEN=""
 INSTALL_DIR="/home/deploy/oss"
 DB_NAME="os_app"
 DB_USER="os_user"
