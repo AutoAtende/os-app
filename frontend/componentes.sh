@@ -3,7 +3,7 @@
 # Instalar dependências base do shadcn/ui
 npm install @shadcn/ui class-variance-authority clsx tailwind-merge lucide-react
 
-# Instalar componentes específicos
+# Instalar componentes necessários
 npx shadcn@latest add alert
 npx shadcn@latest add button
 npx shadcn@latest add card
@@ -21,6 +21,9 @@ npx shadcn@latest add tabs
 npx shadcn@latest add calendar
 npx shadcn@latest add separator
 npx shadcn@latest add sheet
+npx shadcn@latest add skeleton
+npx shadcn@latest add scroll-area
+npx shadcn@latest add popover
 
 # Instalar dependências adicionais necessárias
 npm install @hookform/resolvers date-fns react-hook-form zod
