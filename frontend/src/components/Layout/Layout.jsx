@@ -1,189 +1,168 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
-import {
-  Box,
-  Drawer,
-  AppBar,
-  Toolbar,
-  List,
-  Typography,
-  Divider,
-  IconButton,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  Avatar,
-  Menu,
-  MenuItem,
-} from '@mui/material';
-import {
-  Menu as MenuIcon,
-  Dashboard,
-  Build,
-  Assignment,
-  Settings,
-  People,
-  ExitToApp,
-  AccountCircle,
-  Notifications
-} from '@mui/icons-material';
+import { useAuth } from '@/contexts/AuthContext';
 
-const drawerWidth = 240;
+// Importações do shadcn/ui
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+
+// Importações do Lucide Icons
+import {
+  Menu,
+  LayoutDashboard,
+  Wrench,
+  ClipboardList,
+  Settings,
+  Users,
+  LogOut,
+  User,
+  Bell
+} from 'lucide-react';
 
 const Layout = ({ children }) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [mobileOpen, setMobileOpen] = React.useState(false);
-  const [anchorEl, setAnchorEl] = React.useState(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
-  };
-
-  const handleMenu = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
+  const menuItems = [
+    { text: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" />, path: '/dashboard' },
+    { text: 'Equipamentos', icon: <Wrench className="w-4 h-4" />, path: '/equipamentos' },
+    { text: 'Ordens de Serviço', icon: <ClipboardList className="w-4 h-4" />, path: '/ordens-servico' },
+    { text: 'Usuários', icon: <Users className="w-4 h-4" />, path: '/usuarios', admin: true },
+    { text: 'Configurações', icon: <Settings className="w-4 h-4" />, path: '/configuracoes' },
+  ];
 
   const handleLogout = () => {
     signOut();
     navigate('/login');
   };
 
-  const menuItems = [
-    { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
-    { text: 'Equipamentos', icon: <Build />, path: '/equipamentos' },
-    { text: 'Ordens de Serviço', icon: <Assignment />, path: '/ordens-servico' },
-    { text: 'Usuários', icon: <People />, path: '/usuarios', admin: true },
-    { text: 'Configurações', icon: <Settings />, path: '/configuracoes' },
-  ];
-
-  const drawer = (
-    <div>
-      <Toolbar>
-        <Typography variant="h6" noWrap component="div">
-          Gestão de Equipamentos
-        </Typography>
-      </Toolbar>
-      <Divider />
-      <List>
-        {menuItems.map((item) => (
-          (!item.admin || user?.role === 'admin') && (
-            <ListItem
-              button
-              key={item.text}
-              onClick={() => navigate(item.path)}
-              selected={location.pathname === item.path}
-            >
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItem>
-          )
-        ))}
-      </List>
-    </div>
-  );
-
   return (
-    <Box sx={{ display: 'flex' }}>
-      <AppBar
-        position="fixed"
-        sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}
-      >
-        <Toolbar>
-          <IconButton
-            color="inherit"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-14 items-center">
+          <Button
+            variant="ghost"
+            className="mr-2 px-0 text-base hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 lg:hidden"
+            onClick={() => setIsMobileMenuOpen(true)}
           >
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            {menuItems.find(item => item.path === location.pathname)?.text || 'Dashboard'}
-          </Typography>
+            <Menu className="h-6 w-6" />
+          </Button>
           
-          <IconButton color="inherit">
-            <Notifications />
-          </IconButton>
-          
-          <IconButton
-            onClick={handleMenu}
-            color="inherit"
-          >
-            {user?.avatar ? (
-              <Avatar src={user.avatar} alt={user.name} />
-            ) : (
-              <AccountCircle />
-            )}
-          </IconButton>
-          
-          <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
-            onClose={handleClose}
-          >
-            <MenuItem onClick={() => {
-              handleClose();
-              navigate('/perfil');
-            }}>
-              Meu Perfil
-            </MenuItem>
-            <MenuItem onClick={handleLogout}>
-              <ExitToApp sx={{ mr: 1 }} />
-              Sair
-            </MenuItem>
-          </Menu>
-        </Toolbar>
-      </AppBar>
+          <div className="flex-1" />
 
-      <Box
-        component="nav"
-        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-      >
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{
-            keepMounted: true,
-          }}
-          sx={{
-            display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-          }}
-        >
-          {drawer}
-        </Drawer>
-        <Drawer
-          variant="permanent"
-          sx={{
-            display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-          }}
-          open
-        >
-          {drawer}
-        </Drawer>
-      </Box>
-      
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          p: 3,
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          mt: 8
-        }}
-      >
-        {children}
-      </Box>
-    </Box>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative"
+              onClick={() => navigate('/notifications')}
+            >
+              <Bell className="h-4 w-4" />
+              {/* Notification badge would go here */}
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user?.avatar} alt={user?.name} />
+                    <AvatarFallback>{user?.name?.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => navigate('/perfil')}>
+                  <User className="mr-2 h-4 w-4" />
+                  Meu Perfil
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sair
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </header>
+
+      {/* Mobile Menu */}
+      <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+        <SheetContent side="left" className="w-[300px] sm:w-[400px]">
+          <SheetHeader>
+            <SheetTitle>Menu</SheetTitle>
+          </SheetHeader>
+          <nav className="flex flex-col gap-2 mt-4">
+            {menuItems.map((item) => (
+              (!item.admin || user?.role === 'admin') && (
+                <Button
+                  key={item.path}
+                  variant={location.pathname === item.path ? "secondary" : "ghost"}
+                  className="justify-start"
+                  onClick={() => {
+                    navigate(item.path);
+                    setIsMobileMenuOpen(false);
+                  }}
+                >
+                  {item.icon}
+                  <span className="ml-2">{item.text}</span>
+                </Button>
+              )
+            ))}
+          </nav>
+        </SheetContent>
+      </Sheet>
+
+      {/* Desktop Sidebar */}
+      <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
+        <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r bg-background px-6">
+          <nav className="flex flex-1 flex-col">
+            <ul role="list" className="flex flex-1 flex-col gap-y-7">
+              <li>
+                <ul role="list" className="space-y-1">
+                  {menuItems.map((item) => (
+                    (!item.admin || user?.role === 'admin') && (
+                      <li key={item.path}>
+                        <Button
+                          variant={location.pathname === item.path ? "secondary" : "ghost"}
+                          className="w-full justify-start"
+                          onClick={() => navigate(item.path)}
+                        >
+                          {item.icon}
+                          <span className="ml-2">{item.text}</span>
+                        </Button>
+                      </li>
+                    )
+                  ))}
+                </ul>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <main className="lg:pl-72">
+        <div className="px-4 sm:px-6 lg:px-8 py-6">
+          {children}
+        </div>
+      </main>
+    </div>
   );
 };
 

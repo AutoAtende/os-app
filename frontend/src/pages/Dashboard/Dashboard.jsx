@@ -1,24 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
-  Grid,
-  Paper,
-  Typography,
-  CircularProgress,
-  Box,
-  Card,
-  CardContent,
-  CardHeader,
-  IconButton,
-  Menu,
-  MenuItem
-} from '@mui/material';
-import {
-  Build,
-  Warning,
-  CheckCircle,
-  MoreVert,
-  TrendingUp
-} from '@mui/icons-material';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { api } from '@/services/api';
+
 import {
   LineChart,
   Line,
@@ -34,25 +25,43 @@ import {
   Bar,
   Legend
 } from 'recharts';
-import api from '../../services/api';
 
-const Dashboard = () => {
+import {
+  Wrench,
+  AlertCircle,
+  CheckCircle,
+  TrendingUp,
+  MoreVertical,
+  Calendar
+} from 'lucide-react';
+
+const STATUS_COLORS = {
+  pending: "text-yellow-500",
+  inProgress: "text-blue-500",
+  completed: "text-green-500"
+};
+
+const CHART_COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+
+function Dashboard() {
   const [loading, setLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState('month');
   const [stats, setStats] = useState({
-    maintenancesByType: [],
-    maintenancesTrend: [],
-    equipmentStats: [],
     summary: {
       total: 0,
       active: 0,
       maintenance: 0,
       pendingOrders: 0
+    },
+    maintenancesByType: [],
+    maintenanceTrend: [],
+    equipmentStats: [],
+    performanceMetrics: {
+      avgResolutionTime: 0,
+      completionRate: 0,
+      avgMaintenanceCost: 0
     }
   });
-  const [timeRange, setTimeRange] = useState('month');
-  const [anchorEl, setAnchorEl] = useState(null);
-
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
   useEffect(() => {
     fetchDashboardData();
@@ -60,7 +69,7 @@ const Dashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const response = await api.get(`/dashboard/stats?range=${timeRange}`);
+      const response = await api.get(`/dashboard/stats?period=${timeRange}`);
       setStats(response.data);
     } catch (error) {
       console.error('Erro ao carregar estatísticas:', error);
@@ -69,255 +78,211 @@ const Dashboard = () => {
     }
   };
 
-  const handleMenuClick = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleTimeRangeChange = (range) => {
-    setTimeRange(range);
-    handleMenuClose();
-  };
-
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress />
-      </Box>
+      <div className="flex justify-center items-center h-[calc(100vh-4rem)]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
     );
   }
 
   return (
-    <Box sx={{ flexGrow: 1 }}>
-      <Grid container spacing={3}>
-        {/* Cards de Resumo */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper elevation={3} sx={{ p: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Build sx={{ fontSize: 40, color: 'primary.main', mr: 2 }} />
-              <Box>
-                <Typography variant="h4">{stats.summary.total}</Typography>
-                <Typography color="textSecondary">Total de Equipamentos</Typography>
-              </Box>
-            </Box>
-          </Paper>
-        </Grid>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <Select value={timeRange} onValueChange={setTimeRange}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Selecione o período" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="week">Última Semana</SelectItem>
+            <SelectItem value="month">Último Mês</SelectItem>
+            <SelectItem value="year">Último Ano</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper elevation={3} sx={{ p: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <CheckCircle sx={{ fontSize: 40, color: 'success.main', mr: 2 }} />
-              <Box>
-                <Typography variant="h4">{stats.summary.active}</Typography>
-                <Typography color="textSecondary">Equipamentos Ativos</Typography>
-              </Box>
-            </Box>
-          </Paper>
-        </Grid>
+      {/* Summary Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4">
+              <Wrench className="h-8 w-8 text-primary" />
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total de Equipamentos</p>
+                <h3 className="text-2xl font-bold">{stats.summary.total}</h3>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper elevation={3} sx={{ p: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Warning sx={{ fontSize: 40, color: 'warning.main', mr: 2 }} />
-              <Box>
-                <Typography variant="h4">{stats.summary.maintenance}</Typography>
-                <Typography color="textSecondary">Em Manutenção</Typography>
-              </Box>
-            </Box>
-          </Paper>
-        </Grid>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4">
+              <CheckCircle className="h-8 w-8 text-green-500" />
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Equipamentos Ativos</p>
+                <h3 className="text-2xl font-bold">{stats.summary.active}</h3>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper elevation={3} sx={{ p: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <TrendingUp sx={{ fontSize: 40, color: 'info.main', mr: 2 }} />
-              <Box>
-                <Typography variant="h4">{stats.summary.pendingOrders}</Typography>
-                <Typography color="textSecondary">OS Pendentes</Typography>
-              </Box>
-            </Box>
-          </Paper>
-        </Grid>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4">
+              <AlertCircle className="h-8 w-8 text-yellow-500" />
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Em Manutenção</p>
+                <h3 className="text-2xl font-bold">{stats.summary.maintenance}</h3>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-        {/* Gráfico de Linha - Tendência de Manutenções */}
-        <Grid item xs={12} md={8}>
-          <Card>
-            <CardHeader
-              title="Tendência de Manutenções"
-              action={
-                <>
-                  <IconButton onClick={handleMenuClick}>
-                    <MoreVert />
-                  </IconButton>
-                  <Menu
-                    anchorEl={anchorEl}
-                    open={Boolean(anchorEl)}
-                    onClose={handleMenuClose}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4">
+              <TrendingUp className="h-8 w-8 text-blue-500" />
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">OS Pendentes</p>
+                <h3 className="text-2xl font-bold">{stats.summary.pendingOrders}</h3>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <Card className="col-span-4">
+          <CardHeader>
+            <CardTitle>Tendência de Manutenções</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={stats.maintenanceTrend}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="preventive"
+                    name="Preventivas"
+                    stroke="#0088FE"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="corrective"
+                    name="Corretivas"
+                    stroke="#00C49F"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="predictive"
+                    name="Preditivas"
+                    stroke="#FFBB28"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="col-span-3">
+          <CardHeader>
+            <CardTitle>Distribuição por Tipo</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={stats.maintenancesByType}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    label
                   >
-                    <MenuItem onClick={() => handleTimeRangeChange('week')}>Última Semana</MenuItem>
-                    <MenuItem onClick={() => handleTimeRangeChange('month')}>Último Mês</MenuItem>
-                    <MenuItem onClick={() => handleTimeRangeChange('year')}>Último Ano</MenuItem>
-                  </Menu>
-                </>
-              }
-            />
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={stats.maintenancesTrend}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="preventive"
-                  name="Preventivas"
-                  stroke="#0088FE"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="corrective"
-                  name="Corretivas"
-                  stroke="#00C49F"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="predictive"
-                  name="Preditivas"
-                  stroke="#FFBB28"
-                />
-              </LineChart>
-            </ResponsiveContainer>
+                    {stats.maintenancesByType.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
-      </Grid>
+      </div>
 
-      {/* Gráfico de Pizza - Tipos de Manutenção */}
-      <Grid item xs={12} md={4}>
+      {/* Performance Metrics */}
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
-          <CardHeader title="Distribuição por Tipo" />
+          <CardHeader>
+            <CardTitle>Métricas de Performance</CardTitle>
+          </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={stats.maintenancesByType}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  label
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <p className="text-sm font-medium">Tempo Médio de Resolução</p>
+                <span className="text-2xl font-bold">
+                  {stats.performanceMetrics.avgResolutionTime} horas
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <p className="text-sm font-medium">Taxa de Conclusão</p>
+                <span className="text-2xl font-bold">
+                  {stats.performanceMetrics.completionRate}%
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <p className="text-sm font-medium">Custo Médio por Manutenção</p>
+                <span className="text-2xl font-bold">
+                  R$ {stats.performanceMetrics.avgMaintenanceCost}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Próximas Manutenções</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {stats.upcomingMaintenances?.map((maintenance) => (
+                <div
+                  key={maintenance.id}
+                  className="flex items-center justify-between p-4 rounded-lg bg-muted"
                 >
-                  {stats.maintenancesByType.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+                  <div className="flex items-center space-x-4">
+                    <Calendar className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">{maintenance.equipment.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(maintenance.scheduledDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`text-sm font-medium ${STATUS_COLORS[maintenance.status]}`}>
+                    {maintenance.type}
+                  </span>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
-      </Grid>
-
-      {/* Gráfico de Barras - Equipamentos mais Manutenidos */}
-      <Grid item xs={12}>
-        <Card>
-          <CardHeader title="Equipamentos mais Manutenidos" />
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={stats.equipmentStats}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="maintenanceCount" name="Quantidade" fill="#0088FE" />
-                <Bar dataKey="cost" name="Custo Total (R$)" fill="#00C49F" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </Grid>
-
-      {/* Indicadores de Performance */}
-      <Grid item xs={12} md={6}>
-        <Card>
-          <CardHeader title="Indicadores de Performance" />
-          <CardContent>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography>Tempo Médio de Resolução:</Typography>
-                <Typography variant="h6">
-                  {stats.metrics?.avgResolutionTime || 0} horas
-                </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography>Taxa de Conclusão:</Typography>
-                <Typography variant="h6">
-                  {stats.metrics?.completionRate || 0}%
-                </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography>Custo Médio por Manutenção:</Typography>
-                <Typography variant="h6">
-                  R$ {stats.metrics?.avgMaintenanceCost || 0}
-                </Typography>
-              </Box>
-            </Box>
-          </CardContent>
-        </Card>
-      </Grid>
-
-      {/* Manutenções Programadas */}
-      <Grid item xs={12} md={6}>
-        <Card>
-          <CardHeader title="Próximas Manutenções Programadas" />
-          <CardContent>
-            {stats.scheduledMaintenances?.map((maintenance, index) => (
-              <Box
-                key={index}
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  mb: 2,
-                  p: 1,
-                  borderRadius: 1,
-                  bgcolor: 'background.default'
-                }}
-              >
-                <Box>
-                  <Typography variant="subtitle1">
-                    {maintenance.equipment.name}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    {new Date(maintenance.scheduledDate).toLocaleDateString()}
-                  </Typography>
-                </Box>
-                <Typography
-                  variant="subtitle2"
-                  sx={{
-                    color: 'warning.main',
-                    bgcolor: 'warning.light',
-                    px: 1,
-                    py: 0.5,
-                    borderRadius: 1
-                  }}
-                >
-                  {maintenance.type}
-                </Typography>
-              </Box>
-            ))}
-          </CardContent>
-        </Card>
-      </Grid>
-      </Grid>
-    </Box>
-)};
+      </div>
+    </div>
+  );
+}
 
 export default Dashboard;

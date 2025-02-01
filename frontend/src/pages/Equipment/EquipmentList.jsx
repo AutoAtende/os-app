@@ -1,334 +1,305 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { api } from '@/services/api';
+
 import {
-  Box,
-  Paper,
-  Typography,
-  TextField,
-  Button,
-  IconButton,
   Table,
   TableBody,
   TableCell,
-  TableContainer,
   TableHead,
+  TableHeader,
   TableRow,
-  TablePagination,
-  Chip,
-  Menu,
-  MenuItem,
-  InputAdornment,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  FormControl,
-  InputLabel,
-  Select
-} from '@mui/material';
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
-  Add,
-  Search,
-  FilterList,
-  MoreVert,
-  QrCode,
-  Edit,
-  Delete,
-  Download
-} from '@mui/icons-material';
-import api from '../../services/api';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Card, CardContent } from "@/components/ui/card";
+import { useToast } from "@/components/ui/use-toast";
 
-const EquipmentList = () => {
+import {
+  PlusCircle,
+  Search,
+  Filter,
+  MoreVertical,
+  Edit,
+  QrCode,
+  Trash2,
+  Download,
+  Loader2
+} from 'lucide-react';
+
+const STATUS_COLORS = {
+  active: "success",
+  maintenance: "warning",
+  inactive: "destructive"
+};
+
+const STATUS_LABELS = {
+  active: "Ativo",
+  maintenance: "Em Manutenção",
+  inactive: "Inativo"
+};
+
+export default function EquipmentList() {
   const navigate = useNavigate();
-  const [equipments, setEquipments] = useState([]);
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [totalCount, setTotalCount] = useState(0);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [equipments, setEquipments] = useState([]);
   const [filters, setFilters] = useState({
+    search: '',
     department: '',
     status: ''
   });
   const [filterDialogOpen, setFilterDialogOpen] = useState(false);
-  const [selectedEquipment, setSelectedEquipment] = useState(null);
-  const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
 
   useEffect(() => {
     fetchEquipments();
-  }, [page, rowsPerPage, searchTerm, filters]);
+  }, [filters]);
 
   const fetchEquipments = async () => {
     try {
-      const response = await api.get('/equipment', {
-        params: {
-          page: page + 1,
-          limit: rowsPerPage,
-          search: searchTerm,
-          ...filters
-        }
-      });
-
-      setEquipments(response.data.items);
-      setTotalCount(response.data.total);
+      setLoading(true);
+      const response = await api.get('/equipment', { params: filters });
+      setEquipments(response.data);
     } catch (error) {
-      console.error('Erro ao carregar equipamentos:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Erro ao carregar equipamentos"
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSearchChange = (event) => {
-    setSearchTerm(event.target.value);
-    setPage(0);
-  };
-
-  const handleFilterChange = (event) => {
-    setFilters({
-      ...filters,
-      [event.target.name]: event.target.value
-    });
-    setPage(0);
-  };
-
-  const handlePageChange = (event, newPage) => {
-    setPage(newPage);
-  };
-
-  const handleRowsPerPageChange = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-
-  const handleActionClick = (event, equipment) => {
-    setSelectedEquipment(equipment);
-    setActionMenuAnchor(event.currentTarget);
-  };
-
-  const handleActionClose = () => {
-    setActionMenuAnchor(null);
-    setSelectedEquipment(null);
-  };
-
-  const handleEdit = () => {
-    navigate(`/equipamentos/${selectedEquipment.id}/editar`);
-    handleActionClose();
-  };
-
-  const handleDelete = async () => {
-    if (window.confirm('Tem certeza que deseja excluir este equipamento?')) {
-      try {
-        await api.delete(`/equipment/${selectedEquipment.id}`);
-        fetchEquipments();
-      } catch (error) {
-        console.error('Erro ao excluir equipamento:', error);
-      }
-    }
-    handleActionClose();
-  };
-
-  const handleExportQRCode = () => {
-    window.open(`/api/equipment/${selectedEquipment.id}/qrcode`, '_blank');
-    handleActionClose();
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'active':
-        return 'success';
-      case 'maintenance':
-        return 'warning';
-      case 'inactive':
-        return 'error';
-      default:
-        return 'default';
+  const handleDelete = async (id) => {
+    try {
+      await api.delete(`/equipment/${id}`);
+      toast({
+        title: "Sucesso",
+        description: "Equipamento excluído com sucesso"
+      });
+      fetchEquipments();
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Erro ao excluir equipamento"
+      });
     }
   };
 
-  const getStatusText = (status) => {
-    switch (status) {
-      case 'active':
-        return 'Ativo';
-      case 'maintenance':
-        return 'Em Manutenção';
-      case 'inactive':
-        return 'Inativo';
-      default:
-        return status;
+  const handleExportQRCode = async (id) => {
+    try {
+      const response = await api.get(`/equipment/${id}/qrcode`, {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `qrcode-${id}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Erro ao exportar QR Code"
+      });
     }
   };
+
+  const EquipmentActions = ({ equipment }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon">
+          <MoreVertical className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => navigate(`/equipamentos/${equipment.id}/editar`)}>
+          <Edit className="mr-2 h-4 w-4" />
+          Editar
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleExportQRCode(equipment.id)}>
+          <QrCode className="mr-2 h-4 w-4" />
+          QR Code
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className="text-red-600"
+          onClick={() => handleDelete(equipment.id)}
+        >
+          <Trash2 className="mr-2 h-4 w-4" />
+          Excluir
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   return (
-    <Box>
-      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between' }}>
-        <Typography variant="h4" component="h1">
-          Equipamentos
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => navigate('/equipamentos/novo')}
-        >
+    <div className="container mx-auto py-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Equipamentos</h1>
+          <p className="text-muted-foreground">
+            Gerencie os equipamentos cadastrados no sistema
+          </p>
+        </div>
+        <Button onClick={() => navigate('/equipamentos/novo')}>
+          <PlusCircle className="mr-2 h-4 w-4" />
           Novo Equipamento
         </Button>
-      </Box>
+      </div>
 
-      <Paper sx={{ mb: 2, p: 2 }}>
-        <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-          <TextField
-            fullWidth
-            value={searchTerm}
-            onChange={handleSearchChange}
-            placeholder="Buscar equipamentos..."
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search />
-                </InputAdornment>
-              )
-            }}
-          />
-          <Button
-            variant="outlined"
-            startIcon={<FilterList />}
-            onClick={() => setFilterDialogOpen(true)}
-          >
-            Filtros
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<Download />}
-            onClick={() => window.open('/api/equipment/export', '_blank')}
-          >
-            Exportar
-          </Button>
-        </Box>
-
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Nome</TableCell>
-                <TableCell>Código</TableCell>
-                <TableCell>Departamento</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Última Manutenção</TableCell>
-                <TableCell align="right">Ações</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {equipments.map((equipment) => (
-                <TableRow key={equipment.id}>
-                  <TableCell>{equipment.name}</TableCell>
-                  <TableCell>{equipment.code}</TableCell>
-                  <TableCell>{equipment.department}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={getStatusText(equipment.status)}
-                      color={getStatusColor(equipment.status)}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {equipment.last_maintenance
-                      ? new Date(equipment.last_maintenance).toLocaleDateString()
-                      : 'Nunca realizada'}
-                  </TableCell>
-                  <TableCell align="right">
-                    <IconButton
-                      onClick={(event) => handleActionClick(event, equipment)}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex gap-4 mb-6">
+            <div className="flex-1">
+              <Input
+                placeholder="Buscar equipamentos..."
+                value={filters.search}
+                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                leftIcon={<Search className="h-4 w-4 text-muted-foreground" />}
+              />
+            </div>
+            <Dialog open={filterDialogOpen} onOpenChange={setFilterDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Filter className="mr-2 h-4 w-4" />
+                  Filtros
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Filtros</DialogTitle>
+                  <DialogDescription>
+                    Aplique filtros para refinar sua busca
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Departamento</label>
+                    <Select
+                      value={filters.department}
+                      onValueChange={(value) => setFilters(prev => ({ ...prev, department: value }))}
                     >
-                      <MoreVert />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Todos os departamentos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Todos</SelectItem>
+                        <SelectItem value="TI">TI</SelectItem>
+                        <SelectItem value="Produção">Produção</SelectItem>
+                        <SelectItem value="Manutenção">Manutenção</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Status</label>
+                    <Select
+                      value={filters.status}
+                      onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Todos os status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Todos</SelectItem>
+                        <SelectItem value="active">Ativo</SelectItem>
+                        <SelectItem value="maintenance">Em Manutenção</SelectItem>
+                        <SelectItem value="inactive">Inativo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex justify-between">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setFilters({ search: '', department: '', status: '' });
+                      setFilterDialogOpen(false);
+                    }}
+                  >
+                    Limpar Filtros
+                  </Button>
+                  <Button onClick={() => setFilterDialogOpen(false)}>
+                    Aplicar Filtros
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Button variant="outline" onClick={() => window.open('/api/equipment/export', '_blank')}>
+              <Download className="mr-2 h-4 w-4" />
+              Exportar
+            </Button>
+          </div>
 
-        <TablePagination
-          component="div"
-          count={totalCount}
-          page={page}
-          onPageChange={handlePageChange}
-          rowsPerPage={rowsPerPage}
-          onRowsPerPageChange={handleRowsPerPageChange}
-          rowsPerPageOptions={[5, 10, 25, 50]}
-        />
-      </Paper>
-
-      <Menu
-        anchorEl={actionMenuAnchor}
-        open={Boolean(actionMenuAnchor)}
-        onClose={handleActionClose}
-      >
-        <MenuItem onClick={handleEdit}>
-          <Edit fontSize="small" sx={{ mr: 1 }} /> Editar
-        </MenuItem>
-        <MenuItem onClick={handleExportQRCode}>
-          <QrCode fontSize="small" sx={{ mr: 1 }} /> Exportar QR Code
-        </MenuItem>
-        <MenuItem onClick={handleDelete}>
-          <Delete fontSize="small" sx={{ mr: 1 }} /> Excluir
-        </MenuItem>
-      </Menu>
-
-      <Dialog
-        open={filterDialogOpen}
-        onClose={() => setFilterDialogOpen(false)}
-      >
-        <DialogTitle>Filtros</DialogTitle>
-        <DialogContent>
-          <Box sx={{ minWidth: 300, mt: 2 }}>
-            <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel>Departamento</InputLabel>
-              <Select
-                name="department"
-                value={filters.department}
-                onChange={handleFilterChange}
-                label="Departamento"
-              >
-                <MenuItem value="">Todos</MenuItem>
-                <MenuItem value="TI">TI</MenuItem>
-                <MenuItem value="Produção">Produção</MenuItem>
-                <MenuItem value="Manutenção">Manutenção</MenuItem>
-              </Select>
-              </FormControl>
-
-            <FormControl fullWidth>
-              <InputLabel>Status</InputLabel>
-              <Select
-                name="status"
-                value={filters.status}
-                onChange={handleFilterChange}
-                label="Status"
-              >
-                <MenuItem value="">Todos</MenuItem>
-                <MenuItem value="active">Ativo</MenuItem>
-                <MenuItem value="maintenance">Em Manutenção</MenuItem>
-                <MenuItem value="inactive">Inativo</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => {
-            setFilters({ department: '', status: '' });
-            setFilterDialogOpen(false);
-          }}>
-            Limpar
-          </Button>
-          <Button 
-            variant="contained" 
-            onClick={() => setFilterDialogOpen(false)}
-          >
-            Aplicar
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+          {loading ? (
+            <div className="flex justify-center items-center h-48">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Código</TableHead>
+                    <TableHead>Departamento</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Última Manutenção</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {equipments.map((equipment) => (
+                    <TableRow key={equipment.id}>
+                      <TableCell className="font-medium">{equipment.name}</TableCell>
+                      <TableCell>{equipment.code}</TableCell>
+                      <TableCell>{equipment.department}</TableCell>
+                      <TableCell>
+                        <Badge variant={STATUS_COLORS[equipment.status]}>
+                          {STATUS_LABELS[equipment.status]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {equipment.last_maintenance
+                          ? new Date(equipment.last_maintenance).toLocaleDateString()
+                          : 'Nunca realizada'}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <EquipmentActions equipment={equipment} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
-};
-
-export default EquipmentList;
+}

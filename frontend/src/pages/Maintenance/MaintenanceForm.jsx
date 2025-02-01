@@ -1,56 +1,73 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { api } from '@/services/api';
+
+import { Button } from "@/components/ui/button";
 import {
-  Card,
-  Button,
-  Input,
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-  Textarea,
-  Alert,
   Form,
+  FormControl,
   FormField,
   FormItem,
   FormLabel,
-  FormControl,
-  FormMessage
-} from '@/components/ui';
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/components/ui/use-toast";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
 import {
   ArrowLeft,
   Save,
   Camera,
-  Upload,
   X,
   Plus,
-  Image
+  Loader2,
+  Image as ImageIcon,
+  FileText,
+  Trash2
 } from 'lucide-react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import api from '../services/api';
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
 const formSchema = z.object({
   equipment_id: z.string().min(1, 'Equipamento é obrigatório'),
   description: z.string().min(10, 'Descrição deve ter no mínimo 10 caracteres'),
   type: z.enum(['corrective', 'preventive', 'predictive']),
-  status: z.enum(['pending', 'in_progress', 'completed']),
+  priority: z.enum(['low', 'medium', 'high', 'critical']),
+  scheduled_for: z.string().min(1, 'Data agendada é obrigatória'),
   notes: z.string().optional(),
-  cost: z.string().optional(),
   parts_replaced: z.array(z.object({
-    name: z.string(),
-    quantity: z.number(),
-    cost: z.number()
+    name: z.string().min(1, 'Nome da peça é obrigatório'),
+    quantity: z.number().min(1, 'Quantidade deve ser maior que 0'),
+    cost: z.number().min(0, 'Custo não pode ser negativo')
   })).optional()
 });
 
 export default function MaintenanceForm() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [equipments, setEquipments] = useState([]);
   const [photos, setPhotos] = useState([]);
   const [files, setFiles] = useState([]);
@@ -61,9 +78,9 @@ export default function MaintenanceForm() {
       equipment_id: '',
       description: '',
       type: 'corrective',
-      status: 'pending',
+      priority: 'medium',
+      scheduled_for: new Date().toISOString().split('T')[0],
       notes: '',
-      cost: '',
       parts_replaced: []
     }
   });
@@ -80,67 +97,114 @@ export default function MaintenanceForm() {
       const response = await api.get('/equipment');
       setEquipments(response.data);
     } catch (error) {
-      console.error('Erro ao buscar equipamentos:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Erro ao carregar equipamentos"
+      });
     }
   };
 
   const loadMaintenance = async () => {
     try {
+      setLoading(true);
       const response = await api.get(`/maintenance/${id}`);
-      form.reset(response.data);
+      form.reset({
+        ...response.data,
+        scheduled_for: new Date(response.data.scheduled_for).toISOString().split('T')[0]
+      });
+      
       if (response.data.photos) {
         setPhotos(response.data.photos.map(photo => ({
-          id: photo.id,
-          url: photo.url,
-          preview: true
+          preview: photo.url,
+          id: photo.id
         })));
       }
+      
       if (response.data.files) {
         setFiles(response.data.files);
       }
     } catch (error) {
-      setError('Erro ao carregar manutenção');
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Erro ao carregar manutenção"
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handlePhotoUpload = (event) => {
     const files = Array.from(event.target.files);
     
-    setPhotos(prevPhotos => [
-      ...prevPhotos,
-      ...files.map(file => ({
-        file,
-        preview: URL.createObjectURL(file)
-      }))
-    ]);
+    const validFiles = files.filter(file => {
+      if (file.size > MAX_FILE_SIZE) {
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: `Arquivo ${file.name} muito grande. Máximo: 5MB`
+        });
+        return false;
+      }
+      
+      if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: `Tipo de arquivo não aceito: ${file.name}`
+        });
+        return false;
+      }
+      
+      return true;
+    });
+
+    const newPhotos = validFiles.map(file => ({
+      file,
+      preview: URL.createObjectURL(file)
+    }));
+
+    setPhotos(prev => [...prev, ...newPhotos]);
   };
 
-  const handleFileUpload = (event) => {
-    const uploadedFiles = Array.from(event.target.files);
-    setFiles(prevFiles => [...prevFiles, ...uploadedFiles]);
+  const handleFileUpload = async (event) => {
+    const newFiles = Array.from(event.target.files);
+    
+    const validFiles = newFiles.filter(file => {
+      if (file.size > MAX_FILE_SIZE) {
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: `Arquivo ${file.name} muito grande. Máximo: 5MB`
+        });
+        return false;
+      }
+      return true;
+    });
+
+    setFiles(prev => [...prev, ...validFiles]);
   };
 
   const handleAddPart = () => {
-    const parts = form.getValues('parts_replaced') || [];
+    const currentParts = form.getValues('parts_replaced') || [];
     form.setValue('parts_replaced', [
-      ...parts,
+      ...currentParts,
       { name: '', quantity: 1, cost: 0 }
     ]);
   };
 
   const handleRemovePart = (index) => {
-    const parts = form.getValues('parts_replaced');
-    parts.splice(index, 1);
-    form.setValue('parts_replaced', parts);
+    const currentParts = form.getValues('parts_replaced');
+    const newParts = currentParts.filter((_, i) => i !== index);
+    form.setValue('parts_replaced', newParts);
   };
 
   const onSubmit = async (data) => {
     try {
       setLoading(true);
-      setError('');
-
       const formData = new FormData();
-      
+
       // Dados básicos
       Object.keys(data).forEach(key => {
         if (key === 'parts_replaced') {
@@ -151,14 +215,14 @@ export default function MaintenanceForm() {
       });
 
       // Fotos
-      photos.forEach(photo => {
-        if (!photo.preview) {
+      photos.forEach((photo) => {
+        if (photo.file) {
           formData.append('photos', photo.file);
         }
       });
 
       // Arquivos
-      files.forEach(file => {
+      files.forEach((file) => {
         if (!file.id) {
           formData.append('files', file);
         }
@@ -166,42 +230,52 @@ export default function MaintenanceForm() {
 
       if (id) {
         await api.put(`/maintenance/${id}`, formData);
+        toast({
+          title: "Sucesso",
+          description: "Manutenção atualizada com sucesso"
+        });
       } else {
         await api.post('/maintenance', formData);
+        toast({
+          title: "Sucesso",
+          description: "Manutenção criada com sucesso"
+        });
       }
 
-      navigate('/maintenance');
+      navigate('/manutencoes');
     } catch (error) {
-      setError(error.response?.data?.error || 'Erro ao salvar manutenção');
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: error.response?.data?.error || "Erro ao salvar manutenção"
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto py-6 space-y-6">
       <div className="flex justify-between items-center">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold tracking-tight">
             {id ? 'Editar Manutenção' : 'Nova Manutenção'}
           </h1>
-          <p className="text-gray-500">
-            Registre os detalhes da manutenção
+          <p className="text-muted-foreground">
+            {id ? 'Atualize os dados da manutenção' : 'Registre uma nova manutenção no sistema'}
           </p>
         </div>
-        <Button variant="outline" onClick={() => navigate('/maintenance')}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
+        <Button
+          variant="outline"
+          onClick={() => navigate('/manutencoes')}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Voltar
         </Button>
       </div>
 
       <Card>
-        <div className="p-6">
-          {error && (
-            <Alert variant="destructive" className="mb-6">
-              {error}
-            </Alert>
-          )}
-
+        <CardContent className="p-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
@@ -221,8 +295,8 @@ export default function MaintenanceForm() {
                       </FormControl>
                       <SelectContent>
                         {equipments.map(equipment => (
-                          <SelectItem 
-                            key={equipment.id} 
+                          <SelectItem
+                            key={equipment.id}
                             value={equipment.id.toString()}
                           >
                             {equipment.name} - {equipment.code}
@@ -235,7 +309,7 @@ export default function MaintenanceForm() {
                 )}
               />
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <FormField
                   control={form.control}
                   name="type"
@@ -264,25 +338,40 @@ export default function MaintenanceForm() {
 
                 <FormField
                   control={form.control}
-                  name="status"
+                  name="priority"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Status</FormLabel>
+                      <FormLabel>Prioridade</FormLabel>
                       <Select
                         onValueChange={field.onChange}
                         defaultValue={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Selecione o status" />
+                            <SelectValue placeholder="Selecione a prioridade" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="pending">Pendente</SelectItem>
-                          <SelectItem value="in_progress">Em Andamento</SelectItem>
-                          <SelectItem value="completed">Concluída</SelectItem>
+                          <SelectItem value="low">Baixa</SelectItem>
+                          <SelectItem value="medium">Média</SelectItem>
+                          <SelectItem value="high">Alta</SelectItem>
+                          <SelectItem value="critical">Crítica</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="scheduled_for"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Data Agendada</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -296,10 +385,10 @@ export default function MaintenanceForm() {
                   <FormItem>
                     <FormLabel>Descrição</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        {...field} 
+                      <Textarea
+                        {...field}
                         rows={4}
-                        placeholder="Descreva o problema ou serviço realizado"
+                        placeholder="Descreva o problema ou serviço a ser realizado"
                       />
                     </FormControl>
                     <FormMessage />
@@ -307,27 +396,125 @@ export default function MaintenanceForm() {
                 )}
               />
 
+              {/* Peças Substituídas */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <FormLabel>Peças Substituídas</FormLabel>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAddPart}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Adicionar Peça
+                  </Button>
+                </div>
+
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome da Peça</TableHead>
+                        <TableHead>Quantidade</TableHead>
+                        <TableHead>Custo Unitário</TableHead>
+                        <TableHead className="w-[70px]"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {form.watch('parts_replaced')?.map((_, index) => (
+                        <TableRow key={index}>
+                          <TableCell>
+                            <FormField
+                              control={form.control}
+                              name={`parts_replaced.${index}.name`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormControl>
+                                    <Input {...field} placeholder="Nome da peça" />
+                                  </FormControl>
+                                </FormItem>
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <FormField
+                              control={form.control}
+                              name={`parts_replaced.${index}.quantity`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormControl>
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      {...field}
+                                      onChange={(e) => field.onChange(parseInt(e.target.value))}
+                                    />
+                                  </FormControl>
+                                </FormItem>
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <FormField
+                              control={form.control}
+                              name={`parts_replaced.${index}.cost`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormControl>
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      {...field}
+                                      onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                                    />
+                                  </FormControl>
+                                </FormItem>
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleRemovePart(index)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              {/* Fotos */}
               <div className="space-y-4">
                 <FormLabel>Fotos</FormLabel>
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {photos.map((photo, index) => (
                     <div key={index} className="relative">
                       <img
-                        src={photo.preview || photo.url}
+                        src={photo.preview}
                         alt={`Foto ${index + 1}`}
                         className="w-full h-32 object-cover rounded-lg"
                       />
-                      <button
+                      <Button
                         type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2"
                         onClick={() => {
                           const newPhotos = [...photos];
                           newPhotos.splice(index, 1);
                           setPhotos(newPhotos);
                         }}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
                       >
                         <X className="h-4 w-4" />
-                      </button>
+                      </Button>
                     </div>
                   ))}
                   <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary">
@@ -335,77 +522,100 @@ export default function MaintenanceForm() {
                       type="file"
                       accept="image/*"
                       multiple
-                      onChange={handlePhotoUpload}
                       className="hidden"
+                      onChange={handlePhotoUpload}
                     />
-                    <Camera className="h-8 w-8 text-gray-400" />
-                    <span className="mt-2 text-sm text-gray-500">
+                    <Camera className="h-8 w-8 text-muted-foreground" />
+                    <span className="mt-2 text-sm text-muted-foreground">
                       Adicionar fotos
                     </span>
                   </label>
                 </div>
               </div>
 
+              {/* Arquivos */}
               <div className="space-y-4">
                 <FormLabel>Arquivos Anexos</FormLabel>
                 <div className="space-y-2">
                   {files.map((file, index) => (
-                    <div 
+                    <div
                       key={index}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                      className="flex items-center justify-between p-3 bg-muted rounded-lg"
                     >
                       <div className="flex items-center space-x-3">
-                        <Image className="h-5 w-5 text-gray-400" />
-                        <span className="text-sm text-gray-600">
-                          {file.name}
-                        </span>
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                        <span className="text-sm font-medium">{file.name}</span>
                       </div>
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon"
                         onClick={() => {
                           const newFiles = [...files];
                           newFiles.splice(index, 1);
                           setFiles(newFiles);
                         }}
-                        className="text-red-500 hover:text-red-700"
                       >
                         <X className="h-4 w-4" />
-                      </button>
+                      </Button>
                     </div>
                   ))}
-                  <label className="flex items-center justify-center p-4 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary">
+                  <label className="flex items-center justify-center p-8 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary">
                     <input
                       type="file"
                       multiple
-                      onChange={handleFileUpload}
                       className="hidden"
+                      onChange={handleFileUpload}
                     />
-                    <Upload className="h-6 w-6 text-gray-400 mr-2" />
-                    <span className="text-sm text-gray-500">
-                      Adicionar arquivos
-                    </span>
+                    <div className="flex flex-col items-center">
+                      <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                      <span className="mt-2 text-sm text-muted-foreground">
+                        Arraste arquivos ou clique para selecionar
+                      </span>
+                      <span className="mt-1 text-xs text-muted-foreground">
+                        PDF, Word ou imagens até 5MB
+                      </span>
+                    </div>
                   </label>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-4">
+              {/* Observações */}
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Observações Adicionais</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        rows={3}
+                        placeholder="Informações adicionais sobre a manutenção"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Botões de Ação */}
+              <div className="flex justify-end space-x-4">
                 <Button
+                  type="button"
                   variant="outline"
-                  onClick={() => navigate('/maintenance')}
+                  onClick={() => navigate('/manutencoes')}
                 >
                   Cancelar
                 </Button>
-                <Button 
-                  type="submit"
-                  disabled={loading}
-                >
-                  <Save className="mr-2 h-4 w-4" />
-                  {loading ? 'Salvando...' : 'Salvar'}
+                <Button type="submit" disabled={loading}>
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {loading ? 'Salvando...' : 'Salvar Manutenção'}
                 </Button>
               </div>
             </form>
           </Form>
-        </div>
+        </CardContent>
       </Card>
     </div>
   );
