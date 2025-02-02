@@ -4,7 +4,7 @@ const config = require('../config/database');
 const env = process.env.NODE_ENV || 'development';
 const dbConfig = config[env];
 
-// Criação da instância do Sequelize com configuração explícita do dialeto
+// Criação da instância do Sequelize
 const sequelize = new Sequelize(
   dbConfig.database,
   dbConfig.username,
@@ -12,39 +12,40 @@ const sequelize = new Sequelize(
   {
     host: dbConfig.host,
     port: dbConfig.port,
-    dialect: dbConfig.dialect, // Isso é importante!
+    dialect: dbConfig.dialect,
     define: dbConfig.define,
     logging: dbConfig.logging,
     pool: dbConfig.pool
   }
 );
 
-const User = require('./User')(sequelize);
-const ServiceOrder = require('./ServiceOrder')(sequelize);
-const MaintenanceHistory = require('./MaintenanceHistory')(sequelize);
-const Notification = require('./Notification')(sequelize);
-const File = require('./File')(sequelize);
-const Equipment = require('./Equipment')(sequelize);
-const Report = require('./Report')(sequelize);
+// Importação dos modelos
+const User = require('./User');
+const ServiceOrder = require('./ServiceOrder');
+const MaintenanceHistory = require('./MaintenanceHistory');
+const Notification = require('./Notification');
+const File = require('./File');
+const Equipment = require('./Equipment');
+const Report = require('./Report');
 
-const models = { 
-  User, 
-  ServiceOrder, 
-  MaintenanceHistory, 
-  Notification, 
-  File, 
-  Equipment, 
-  Report 
+// Inicialização dos modelos
+const models = {
+  User: User.init(sequelize),
+  ServiceOrder: ServiceOrder.init(sequelize),
+  MaintenanceHistory: MaintenanceHistory.init(sequelize),
+  Notification: Notification.init(sequelize),
+  File: File.init(sequelize),
+  Equipment: Equipment.init(sequelize),
+  Report: Report.init(sequelize)
 };
 
-Object.values(models).forEach(model => {
-  if (model.associate) {
-    model.associate(models);
-  }
-});
+// Associações entre modelos
+Object.values(models)
+  .filter(model => typeof model.associate === 'function')
+  .forEach(model => model.associate(models));
 
-module.exports = { 
-  sequelize, 
-  Sequelize, 
-  ...models 
+module.exports = {
+  sequelize,
+  Sequelize,
+  ...models
 };

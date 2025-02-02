@@ -21,6 +21,9 @@ class User extends Model {
           },
         },
         password: {
+          type: DataTypes.VIRTUAL,
+        },
+        password_hash: {
           type: DataTypes.STRING,
           allowNull: false,
         },
@@ -42,8 +45,8 @@ class User extends Model {
         underscored: true,
         hooks: {
           beforeSave: async (user) => {
-            if (user.changed('password')) {
-              user.password = await bcrypt.hash(user.password, 8);
+            if (user.password) {
+              user.password_hash = await bcrypt.hash(user.password, 8);
             }
           },
         },

@@ -3,22 +3,27 @@ const { generateToken } = require('../utils/auth');
 
 class UserController {
   async store(req, res) {
-    const { email } = req.body;
+    try {
+      const { email } = req.body;
 
-    const userExists = await User.findOne({ where: { email } });
+      const userExists = await User.findOne({ where: { email } });
 
-    if (userExists) {
-      return res.status(400).json({ error: 'Usuário já existe' });
+      if (userExists) {
+        return res.status(400).json({ error: 'Usuário já existe' });
+      }
+
+      const user = await User.create(req.body);
+
+      // Remove o password do retorno
+      const { password, ...userData } = user.get();
+
+      return res.status(201).json({
+        user: userData,
+        token: generateToken({ id: user.id }),
+      });
+    } catch (error) {
+      return res.status(500).json({ error: 'Erro interno do servidor' });
     }
-
-    const user = await User.create(req.body);
-
-    user.password = undefined;
-
-    return res.status(201).json({
-      user,
-      token: generateToken({ id: user.id }),
-    });
   }
 
   async update(req, res) {
