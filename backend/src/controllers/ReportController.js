@@ -3,6 +3,8 @@ const ExcelService = require('../services/ExcelService');
 const JobProcessor = require('../jobs/JobProcessor');
 const CacheService = require('../services/CacheService');
 const logger = require('../utils/logger');
+const { Equipment, MaintenanceHistory, User } = require('../models');
+const { Op } = require('sequelize');
 
 class ReportController {
   async generate(req, res) {
@@ -16,7 +18,6 @@ class ReportController {
         equipment_id
       } = req.query;
 
-      // Valida parâmetros
       if (!type) {
         return res.status(400).json({ error: 'Tipo de relatório é obrigatório' });
       }
@@ -30,24 +31,61 @@ class ReportController {
         return res.json(cachedReport);
       }
 
-      // Inicia job de geração
-      const job = await JobProcessor.addReportJob({
-        type,
-        format,
-        filters: {
-          start_date,
-          end_date,
-          department,
-          equipment_id
-        },
-        userId: req.userId
-      });
+      // Define filtros base
+      const where = {};
+      if (start_date && end_date) {
+        where.created_at = { [Op.between]: [start_date, end_date] };
+      }
+      if (department) {
+        where.department = department;
+      }
+      if (equipment_id) {
+        where.equipment_id = equipment_id;
+      }
 
-      return res.json({
-        message: 'Relatório está sendo gerado',
-        jobId: job.id,
-        estimatedTime: '1-2 minutos'
-      });
+      let data;
+      let buffer;
+
+      // Busca dados baseado no tipo de relatório
+      switch (type) {
+        case 'maintenance':
+          data = await MaintenanceHistory.findAll({
+            where,
+            include: [
+              { model: Equipment, as: 'equipment' },
+              { model: User, as: 'technician', attributes: ['name'] }
+            ],
+            order: [['created_at', 'DESC']]
+          });
+          buffer = format === 'pdf' ? 
+            await PDFService.createMaintenanceReport(data) :
+            await ExcelService.generateMaintenanceReport(data);
+          break;
+
+        case 'equipment':
+          data = await Equipment.findAll({
+            where,
+            include: [{ model: MaintenanceHistory, as: 'maintenance_history' }],
+            order: [['name', 'ASC']]
+          });
+          buffer = format === 'pdf' ? 
+            await PDFService.createEquipmentReport(data) :
+            await ExcelService.generateEquipmentReport(data);
+          break;
+
+        default:
+          return res.status(400).json({ error: 'Tipo de relatório inválido' });
+      }
+
+      // Define headers baseado no formato
+      res.setHeader('Content-Disposition', `attachment; filename=report-${type}.${format}`);
+      if (format === 'pdf') {
+        res.setHeader('Content-Type', 'application/pdf');
+      } else {
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      }
+
+      return res.send(buffer);
 
     } catch (error) {
       logger.error('Erro ao gerar relatório:', error);
