@@ -1,9 +1,5 @@
-// src/models/Report.js
-const { Model, DataTypes } = require('sequelize');
-
-class Report extends Model {
-  static init(sequelize) {
-    super.init({
+module.exports = (sequelize, DataTypes) => {
+    const Report = sequelize.define('Report', {
       type: {
         type: DataTypes.STRING,
         allowNull: false
@@ -26,18 +22,16 @@ class Report extends Model {
         type: DataTypes.TEXT
       }
     }, {
-      sequelize,
       tableName: 'reports'
     });
-    return this;
-  }
-
-  static associate(models) {
-    this.belongsTo(models.User, {
-      foreignKey: 'created_by',
-      as: 'creator'
-    });
-  }
-}
-
-module.exports = Report;
+  
+    Report.associate = function(models) {
+      Report.belongsTo(models.User, {
+        foreignKey: 'created_by',
+        as: 'creator'
+      });
+    };
+  
+    return Report;
+  };
+  
