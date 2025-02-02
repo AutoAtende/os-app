@@ -2,7 +2,7 @@ const AWS = require('aws-sdk');
 const nodemailer = require('nodemailer');
 const cron = require('node-cron');
 const {Equipment} = require('../models/Equipment');
-const {Maintenance} = require('../models/Maintenance')
+const {MaintenanceHistory} = require('../models/MaintenanceHistory')
 const {User} = require('../models/User');
 const { Op } = require('sequelize');
 const logger = require('../utils/logger');
@@ -79,7 +79,7 @@ class NotificationService {
   async checkPendingMaintenances() {
     try {
       const today = new Date();
-      const maintenances = await Maintenance.findAll({
+      const maintenances = await MaintenanceHistory.findAll({
         where: {
           status: 'pending',
           scheduled_for: {
@@ -118,7 +118,7 @@ class NotificationService {
       // Busca equipamentos com mais de 3 manutenções nos últimos 30 dias
       const equipments = await Equipment.findAll({
         include: [{
-          model: Maintenance,
+          model: MaintenanceHistory,
           where: {
             created_at: {
               [Op.gte]: thirtyDaysAgo
