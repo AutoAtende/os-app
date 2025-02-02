@@ -2,7 +2,7 @@ const { Model, DataTypes } = require('sequelize');
 const bcrypt = require('bcryptjs');
 
 class User extends Model {
-  static init(sequelize) {
+  static init(sequelize, DataTypes) {
     super.init({
       name: {
         type: DataTypes.STRING,
@@ -45,7 +45,14 @@ class User extends Model {
   }
 
   static associate(models) {
-    this.hasMany(models.ServiceOrder, { foreignKey: 'created_by', as: 'service_orders' });
+    this.hasMany(models.ServiceOrder, { 
+      foreignKey: 'created_by', 
+      as: 'service_orders' 
+    });
+    this.hasMany(models.MaintenanceHistory, {
+      foreignKey: 'performed_by',
+      as: 'maintenance_history'
+    });
   }
 
   checkPassword(password) {
@@ -53,6 +60,4 @@ class User extends Model {
   }
 }
 
-module.exports = {
-    User
-  };
+module.exports = User;
