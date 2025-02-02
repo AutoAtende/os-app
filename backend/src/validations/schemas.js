@@ -9,6 +9,33 @@ const schemas = {
       .required('Senha é obrigatória')
   }),
 
+  userSchema: yup.object().shape({
+    name: yup.string()
+      .required('Nome é obrigatório')
+      .min(3, 'Nome deve ter no mínimo 3 caracteres'),
+    email: yup.string()
+      .email('Email inválido')
+      .required('Email é obrigatório'),
+    password: yup.string()
+      .required('Senha é obrigatória')
+      .min(6, 'Senha deve ter no mínimo 6 caracteres'),
+    role: yup.string()
+      .oneOf(['admin', 'manager', 'technician'], 'Papel inválido')
+      .required('Papel é obrigatório'),
+    department: yup.string()
+      .required('Departamento é obrigatório')
+  }),
+
+  userUpdateSchema: yup.object().shape({
+    name: yup.string()
+      .min(3, 'Nome deve ter no mínimo 3 caracteres'),
+    email: yup.string()
+      .email('Email inválido'),
+    role: yup.string()
+      .oneOf(['admin', 'manager', 'technician'], 'Papel inválido'),
+    department: yup.string()
+  }),
+
   equipmentSchema: yup.object().shape({
     name: yup.string()
       .required('Nome é obrigatório')
@@ -24,6 +51,28 @@ const schemas = {
       .min(1, 'Frequência deve ser maior que 0')
   }),
 
+  serviceOrderSchema: yup.object().shape({
+    equipment_id: yup.number()
+      .required('Equipamento é obrigatório'),
+    description: yup.string()
+      .required('Descrição é obrigatória')
+      .min(10, 'Descrição deve ter no mínimo 10 caracteres'),
+    type: yup.string()
+      .oneOf(['preventive', 'corrective', 'predictive'], 'Tipo inválido')
+      .required('Tipo é obrigatório'),
+    priority: yup.string()
+      .oneOf(['low', 'medium', 'high', 'critical'], 'Prioridade inválida')
+      .required('Prioridade é obrigatória'),
+    scheduled_for: yup.date()
+      .required('Data de agendamento é obrigatória')
+  }),
+
+  serviceOrderUpdateSchema: yup.object().shape({
+    status: yup.string()
+      .oneOf(['pending', 'in_progress', 'completed', 'cancelled'], 'Status inválido')
+      .required('Status é obrigatório')
+  }),
+
   maintenanceSchema: yup.object().shape({
     equipment_id: yup.number()
       .required('Equipamento é obrigatório'),
@@ -31,7 +80,7 @@ const schemas = {
       .required('Descrição é obrigatória')
       .min(10, 'Descrição deve ter no mínimo 10 caracteres'),
     type: yup.string()
-      .oneOf(['corrective', 'preventive', 'predictive'], 'Tipo inválido')
+      .oneOf(['preventive', 'corrective', 'predictive'], 'Tipo inválido')
       .required('Tipo é obrigatório'),
     cost: yup.number()
       .min(0, 'Custo não pode ser negativo'),
@@ -41,15 +90,13 @@ const schemas = {
 
   maintenanceUpdateSchema: yup.object().shape({
     status: yup.string()
-      .oneOf(['pending', 'in_progress', 'completed', 'cancelled'], 'Status inválido')
+      .oneOf(['pending', 'in_progress', 'completed'], 'Status inválido')
       .required('Status é obrigatório'),
     completion_notes: yup.string()
       .when('status', {
         is: 'completed',
         then: yup.string().required('Notas de conclusão são obrigatórias')
-      }),
-    cost: yup.number()
-      .min(0, 'Custo não pode ser negativo')
+      })
   })
 };
 

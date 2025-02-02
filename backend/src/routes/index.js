@@ -1,4 +1,3 @@
-// src/routes/index.js
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
@@ -10,72 +9,69 @@ const validate = require('../middlewares/validate');
 const schemas = require('../validations/schemas');
 
 // Controllers
-const authController = require('../controllers/AuthController');
-const equipmentController = require('../controllers/EquipmentController');
-const serviceOrderController = require('../controllers/ServiceOrderController');
-const userController = require('../controllers/UserController');
-const maintenanceController = require('../controllers/MaintenanceController');
-const notificationController = require('../controllers/NotificationController');
-const reportController = require('../controllers/ReportController');
-const dashboardController = require('../controllers/DashboardController');
+const AuthController = require('../controllers/AuthController');
+const EquipmentController = require('../controllers/EquipmentController');
+const ServiceOrderController = require('../controllers/ServiceOrderController');
+const UserController = require('../controllers/UserController');
+const MaintenanceController = require('../controllers/MaintenanceController');
+const NotificationController = require('../controllers/NotificationController');
+const ReportController = require('../controllers/ReportController');
+const DashboardController = require('../controllers/DashboardController');
 
 const upload = multer(multerConfig);
 
 // Rotas públicas
-router.post('/auth/login', validate(schemas.loginSchema), authController.login);
-router.post('/auth/forgot-password', authController.forgotPassword);
-router.post('/auth/reset-password', authController.resetPassword);
+router.post('/auth/login', validate(schemas.loginSchema), AuthController.login);
+router.post('/auth/forgot-password', AuthController.forgotPassword);
+router.post('/auth/reset-password', AuthController.resetPassword);
 
 // Middleware de autenticação para rotas protegidas
 router.use(AuthMiddleware.authenticate);
 
 // Equipamentos
-router.get('/equipment', AuthMiddleware.hasDepartmentAccess, equipmentController.index);
+router.get('/equipment', AuthMiddleware.hasDepartmentAccess, EquipmentController.index);
 router.post('/equipment', 
   AuthMiddleware.hasRole(['admin', 'manager']),
   validate(schemas.equipmentSchema),
   upload.single('image'),
-  equipmentController.store
+  EquipmentController.store
 );
-router.get('/equipment/:id', AuthMiddleware.hasDepartmentAccess, equipmentController.show);
+router.get('/equipment/:id', AuthMiddleware.hasDepartmentAccess, EquipmentController.show);
 router.put('/equipment/:id',
   AuthMiddleware.hasRole(['admin', 'manager']),
   validate(schemas.equipmentSchema),
   upload.single('image'),
-  equipmentController.update
+  EquipmentController.update
 );
-router.delete('/equipment/:id', 
-  AuthMiddleware.hasRole(['admin']), 
-  equipmentController.destroy  // Aqui estava o problema - faltava o método destroy
-);
+router.delete('/equipment/:id', AuthMiddleware.hasRole(['admin']), EquipmentController.destroy);
 
 // Ordens de Serviço
-router.get('/service-orders', AuthMiddleware.hasDepartmentAccess, serviceOrderController.index);
+router.get('/service-orders', AuthMiddleware.hasDepartmentAccess, ServiceOrderController.index);
 router.post('/service-orders',
   validate(schemas.serviceOrderSchema),
   upload.array('attachments', 5),
-  serviceOrderController.store
+  ServiceOrderController.store
 );
-router.get('/service-orders/:id', AuthMiddleware.hasDepartmentAccess, serviceOrderController.show);
+router.get('/service-orders/:id', AuthMiddleware.hasDepartmentAccess, ServiceOrderController.show);
 router.put('/service-orders/:id',
   AuthMiddleware.hasRole(['admin', 'technician']),
   validate(schemas.serviceOrderUpdateSchema),
-  serviceOrderController.update
+  ServiceOrderController.update
 );
 
 // Usuários
-router.get('/users', AuthMiddleware.hasRole(['admin']), userController.index);
+router.get('/users', AuthMiddleware.hasRole(['admin']), UserController.index);
 router.post('/users',
   AuthMiddleware.hasRole(['admin']),
   validate(schemas.userSchema),
-  userController.store
+  UserController.store
 );
 router.put('/users/:id',
   AuthMiddleware.hasRole(['admin']),
   validate(schemas.userUpdateSchema),
-  userController.update
+  UserController.update
 );
-router.delete('/users/:id', AuthMiddleware.hasRole(['admin']), userController.delete);
+router.delete('/users/:id', AuthMiddleware.hasRole(['admin']), UserController.delete);
 
 // Manutenções
 router.post('/maintenance',
@@ -84,36 +80,30 @@ router.post('/maintenance',
     { name: 'photos', maxCount: 5 },
     { name: 'documents', maxCount: 3 }
   ]),
-  maintenanceController.store
+  MaintenanceController.store
 );
-router.get('/maintenance', AuthMiddleware.hasDepartmentAccess, maintenanceController.index);
-router.get('/maintenance/:id', AuthMiddleware.hasDepartmentAccess, maintenanceController.show);
+router.get('/maintenance', AuthMiddleware.hasDepartmentAccess, MaintenanceController.index);
+router.get('/maintenance/:id', AuthMiddleware.hasDepartmentAccess, MaintenanceController.show);
 router.put('/maintenance/:id',
   AuthMiddleware.hasRole(['admin', 'technician']),
   validate(schemas.maintenanceUpdateSchema),
-  maintenanceController.update
-);
-
-// Relatórios
-router.get('/reports/maintenance',
-  AuthMiddleware.hasRole(['admin', 'manager']),
-  reportController.generateMaintenanceReport
-);
-router.get('/reports/equipment',
-  AuthMiddleware.hasRole(['admin', 'manager']),
-  reportController.generateEquipmentReport
-);
-router.get('/reports/performance',
-  AuthMiddleware.hasRole(['admin', 'manager']),
-  reportController.generatePerformanceReport
+  MaintenanceController.update
 );
 
 // Dashboard
-router.get('/dashboard/stats', AuthMiddleware.hasDepartmentAccess, dashboardController.getStats);
+router.get('/dashboard/stats', AuthMiddleware.hasDepartmentAccess, DashboardController.getStats);
 
 // Notificações
-router.get('/notifications', notificationController.list);
-router.put('/notifications/preferences', notificationController.updateUserPreferences);
-router.put('/notifications/:id/read', notificationController.markAsRead);
+router.get('/notifications', NotificationController.list);
+router.put('/notifications/:id/read', NotificationController.markAsRead);
+router.put('/notifications/mark-all-read', NotificationController.markAllAsRead);
+router.get('/notifications/preferences', NotificationController.getUserPreferences);
+router.put('/notifications/preferences', NotificationController.updateUserPreferences);
+
+// Relatórios
+router.get('/reports/generate', AuthMiddleware.hasRole(['admin', 'manager']), ReportController.generate);
+router.get('/reports/:id/download', AuthMiddleware.hasRole(['admin', 'manager']), ReportController.download);
+router.get('/reports', AuthMiddleware.hasRole(['admin', 'manager']), ReportController.list);
+router.delete('/reports/:id', AuthMiddleware.hasRole(['admin']), ReportController.delete);
 
 module.exports = router;
