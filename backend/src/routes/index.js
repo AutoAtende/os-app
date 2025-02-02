@@ -1,3 +1,4 @@
+// src/routes/index.js
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
@@ -29,39 +30,52 @@ router.post('/auth/reset-password', authController.resetPassword);
 router.use(AuthMiddleware.authenticate);
 
 // Equipamentos
-router.get('/equipment', 
-  AuthMiddleware.hasDepartmentAccess,
-  equipmentController.index
-);
-
-router.post('/equipment',
+router.get('/equipment', AuthMiddleware.hasDepartmentAccess, equipmentController.index);
+router.post('/equipment', 
   AuthMiddleware.hasRole(['admin', 'manager']),
   validate(schemas.equipmentSchema),
   upload.single('image'),
   equipmentController.store
 );
-
-router.get('/equipment/:id',
-  AuthMiddleware.hasDepartmentAccess,
-  equipmentController.show
-);
-
+router.get('/equipment/:id', AuthMiddleware.hasDepartmentAccess, equipmentController.show);
 router.put('/equipment/:id',
   AuthMiddleware.hasRole(['admin', 'manager']),
   validate(schemas.equipmentSchema),
   upload.single('image'),
   equipmentController.update
 );
+router.delete('/equipment/:id', 
+  AuthMiddleware.hasRole(['admin']), 
+  equipmentController.destroy  // Aqui estava o problema - faltava o método destroy
+);
 
-router.delete('/equipment/:id',
+// Ordens de Serviço
+router.get('/service-orders', AuthMiddleware.hasDepartmentAccess, serviceOrderController.index);
+router.post('/service-orders',
+  validate(schemas.serviceOrderSchema),
+  upload.array('attachments', 5),
+  serviceOrderController.store
+);
+router.get('/service-orders/:id', AuthMiddleware.hasDepartmentAccess, serviceOrderController.show);
+router.put('/service-orders/:id',
+  AuthMiddleware.hasRole(['admin', 'technician']),
+  validate(schemas.serviceOrderUpdateSchema),
+  serviceOrderController.update
+);
+
+// Usuários
+router.get('/users', AuthMiddleware.hasRole(['admin']), userController.index);
+router.post('/users',
   AuthMiddleware.hasRole(['admin']),
-  equipmentController.delete
+  validate(schemas.userSchema),
+  userController.store
 );
-
-router.get('/equipment/:id/qrcode',
-  AuthMiddleware.hasDepartmentAccess,
-  equipmentController.generateQRCode
+router.put('/users/:id',
+  AuthMiddleware.hasRole(['admin']),
+  validate(schemas.userUpdateSchema),
+  userController.update
 );
+router.delete('/users/:id', AuthMiddleware.hasRole(['admin']), userController.delete);
 
 // Manutenções
 router.post('/maintenance',
@@ -72,62 +86,12 @@ router.post('/maintenance',
   ]),
   maintenanceController.store
 );
-
-router.get('/maintenance',
-  AuthMiddleware.hasDepartmentAccess,
-  maintenanceController.index
-);
-
-router.get('/maintenance/:id',
-  AuthMiddleware.hasDepartmentAccess,
-  maintenanceController.show
-);
-
+router.get('/maintenance', AuthMiddleware.hasDepartmentAccess, maintenanceController.index);
+router.get('/maintenance/:id', AuthMiddleware.hasDepartmentAccess, maintenanceController.show);
 router.put('/maintenance/:id',
   AuthMiddleware.hasRole(['admin', 'technician']),
   validate(schemas.maintenanceUpdateSchema),
   maintenanceController.update
-);
-
-// Ordens de Serviço
-router.get('/service-orders',
-  AuthMiddleware.hasDepartmentAccess,
-  serviceOrderController.index
-);
-
-router.post('/service-orders',
-  validate(schemas.serviceOrderSchema),
-  upload.array('attachments', 5),
-  serviceOrderController.store
-);
-
-router.get('/service-orders/:id',
-  AuthMiddleware.hasDepartmentAccess,
-  serviceOrderController.show
-);
-
-router.put('/service-orders/:id',
-  AuthMiddleware.hasRole(['admin', 'technician']),
-  validate(schemas.serviceOrderUpdateSchema),
-  serviceOrderController.update
-);
-
-// Usuários
-router.get('/users',
-  AuthMiddleware.hasRole(['admin']),
-  userController.index
-);
-
-router.post('/users',
-  AuthMiddleware.hasRole(['admin']),
-  validate(schemas.userSchema),
-  userController.store
-);
-
-router.put('/users/:id',
-  AuthMiddleware.hasRole(['admin']),
-  validate(schemas.userUpdateSchema),
-  userController.update
 );
 
 // Relatórios
@@ -135,34 +99,21 @@ router.get('/reports/maintenance',
   AuthMiddleware.hasRole(['admin', 'manager']),
   reportController.generateMaintenanceReport
 );
-
 router.get('/reports/equipment',
   AuthMiddleware.hasRole(['admin', 'manager']),
   reportController.generateEquipmentReport
 );
-
 router.get('/reports/performance',
   AuthMiddleware.hasRole(['admin', 'manager']),
   reportController.generatePerformanceReport
 );
 
 // Dashboard
-router.get('/dashboard/stats',
-  AuthMiddleware.hasDepartmentAccess,
-  dashboardController.getStats
-);
+router.get('/dashboard/stats', AuthMiddleware.hasDepartmentAccess, dashboardController.getStats);
 
 // Notificações
-router.get('/notifications',
-  notificationController.list
-);
-
-router.put('/notifications/preferences',
-  notificationController.updatePreferences
-);
-
-router.put('/notifications/:id/read',
-  notificationController.markAsRead
-);
+router.get('/notifications', notificationController.list);
+router.put('/notifications/preferences', notificationController.updateUserPreferences);
+router.put('/notifications/:id/read', notificationController.markAsRead);
 
 module.exports = router;

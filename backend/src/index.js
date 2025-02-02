@@ -1,38 +1,48 @@
 require('dotenv').config();
-const app = require('./app'); // Importa a aplicação configurada
+const http = require('http');
+const app = require('./app');
+const WebSocket = require('ws');
+const WebSocketManager = require('./websocket/WebSocketManager');
 const logger = require('./utils/logger');
-const sequelize = require('../database'); 
+const { sequelize } = require('./models');
+
+const server = http.createServer(app);
+const wsManager = new WebSocketManager(server);
 
 const startServer = async () => {
   try {
-    // Conecta ao banco de dados
+    // Testa conexão com banco
     await sequelize.authenticate();
-    logger.info('Conexão com banco de dados estabelecida.');
+    logger.info('Conexão com banco de dados estabelecida com sucesso.');
+
+    // Sincroniza modelos com banco (em desenvolvimento)
+    if (process.env.NODE_ENV === 'development') {
+      await sequelize.sync({ alter: true });
+      logger.info('Modelos sincronizados com o banco de dados.');
+    }
 
     const port = process.env.PORT || 3000;
-    app.listen(port, () => {
+    
+    server.listen(port, () => {
       logger.info(`Servidor rodando na porta ${port}`);
       logger.info(`Ambiente: ${process.env.NODE_ENV}`);
     });
 
-    // Graceful shutdown
-    const shutdown = async () => {
-      logger.info('Iniciando shutdown graceful...');
-      
-      // Fecha conexões
-      await sequelize.close();
-      logger.info('Conexões com banco fechadas');
-
-      process.exit(0);
-    };
-
-    process.on('SIGTERM', shutdown);
-    process.on('SIGINT', shutdown);
-
   } catch (error) {
-    logger.error('Erro fatal ao iniciar aplicação:', error);
+    logger.error('Erro ao iniciar servidor:', error);
     process.exit(1);
   }
 };
+
+// Tratamento de erros não capturados
+process.on('uncaughtException', (error) => {
+  logger.error('Erro não capturado:', error);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (error) => {
+  logger.error('Promise rejeitada não tratada:', error);
+  process.exit(1);
+});
 
 startServer();
