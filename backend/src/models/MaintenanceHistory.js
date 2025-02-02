@@ -1,4 +1,6 @@
 const { Model, DataTypes } = require('sequelize');
+const { User } = require('User');
+const { Equipment } = require('Equipment');
 class MaintenanceHistory extends Model {
     static init(sequelize) {
       super.init({
