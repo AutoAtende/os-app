@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { User } = require('../models/User');
 const { Op } = require('sequelize');
-const EmailService = require('../services/EmailService');
+const EmailService = require('../services/emailService');
 const logger = require('../utils/logger');
 
 class AuthController {
