@@ -4,7 +4,7 @@ const {Equipment} = require('../models/Equipment');
 const {MaintenanceHistory} = require('../models/MaintenanceHistory')
 const {User} = require('../models/User');
 
-const { uploadToS3 } = require('../services/S3Service');
+const S3Service = require('../services/S3Service');
 
 class ServiceOrderController {
   async store(req, res) {
@@ -33,7 +33,7 @@ class ServiceOrderController {
 
     if (req.files) {
       const filesPromises = req.files.map(file => 
-        uploadToS3(file).then(url => 
+        S3Service.uploadToS3(file).then(url => 
           File.create({
             name: file.originalname,
             path: url,
