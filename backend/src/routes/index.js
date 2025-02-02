@@ -52,7 +52,7 @@ router.post('/service-orders',
   upload.array('attachments', 5),
   ServiceOrderController.store
 );
-router.get('/service-orders/:id', AuthMiddleware.hasDepartmentAccess, ServiceOrderController.show);
+router.get('/service-orders/:id', ServiceOrderController.show);
 router.put('/service-orders/:id',
   AuthMiddleware.hasRole(['admin', 'technician']),
   validate(schemas.serviceOrderUpdateSchema),
