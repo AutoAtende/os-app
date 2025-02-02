@@ -1,12 +1,31 @@
 #!/bin/bash
 
-# Instalar componentes do shadcn/ui
-echo "🚀 Instalando componentes do shadcn/ui..."
+# Instalação das dependências necessárias
+echo "Instalando dependências..."
+npm install -D tailwindcss postcss autoprefixer
+npm install @radix-ui/react-icons class-variance-authority clsx tailwind-merge
+
+# Inicializar Tailwind CSS
+echo "Inicializando Tailwind CSS..."
+npx tailwindcss init -p
+
+# Criar diretório components se não existir
+mkdir -p src/components/ui
 
 # Inicializar shadcn/ui
-npx shadcn-ui@latest init
+echo "Inicializando shadcn/ui..."
+npx shadcn@latest init <<EOF
+y
+y
+default
+slate
+y
+src/components/ui
+@/components/ui
+y
+EOF
 
-# Instalar componentes necessários
+# Lista de componentes a serem instalados
 components=(
   "alert"
   "button"
@@ -30,10 +49,10 @@ components=(
   "popover"
 )
 
-for component in "${components[@]}"
-do
-  echo "📦 Instalando componente: $component"
+# Instalar cada componente
+for component in "${components[@]}"; do
+  echo "Instalando componente: $component"
   npx shadcn@latest add "$component" -y
 done
 
-echo "✅ Instalação dos componentes concluída!"
+echo "✅ Configuração concluída!"
