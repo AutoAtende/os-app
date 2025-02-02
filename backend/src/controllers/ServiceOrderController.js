@@ -1,7 +1,7 @@
 const {ServiceOrder} = require('../models/ServiceOrder');
 const {File} = require('../models/File');
 const {Equipment} = require('../models/Equipment');
-const {Maintenance} = require('../models/Maintenance')
+const {MaintenanceHistory} = require('../models/MaintenanceHistory')
 const {User} = require('../models/User');
 
 const { uploadToS3 } = require('../services/S3Service');
