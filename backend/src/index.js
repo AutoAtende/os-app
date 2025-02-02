@@ -1,7 +1,7 @@
 require('dotenv').config();
 const app = require('./app'); // Importa a aplicação configurada
 const logger = require('./utils/logger');
-const { sequelize } = require('./models');
+const sequelize = require('../database'); 
 
 const startServer = async () => {
   try {
