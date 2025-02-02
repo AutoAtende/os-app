@@ -2,56 +2,64 @@ const { Model, DataTypes } = require('sequelize');
 const bcrypt = require('bcryptjs');
 
 class User extends Model {
-  static init(sequelize, DataTypes) {
-    super.init({
-      name: {
-        type: DataTypes.STRING,
-        allowNull: false,
-        validate: {
-          notEmpty: true,
+  static init(sequelize) {
+    super.init(
+      {
+        name: {
+          type: DataTypes.STRING,
+          allowNull: false,
+          validate: {
+            notEmpty: true,
+          },
+        },
+        email: {
+          type: DataTypes.STRING,
+          allowNull: false,
+          unique: true,
+          validate: {
+            isEmail: true,
+          },
+        },
+        password: {
+          type: DataTypes.STRING,
+          allowNull: false,
+        },
+        role: {
+          type: DataTypes.ENUM('admin', 'manager', 'technician'),
+          allowNull: false,
+          defaultValue: 'technician',
+        },
+        active: {
+          type: DataTypes.BOOLEAN,
+          defaultValue: true,
         },
       },
-      email: {
-        type: DataTypes.STRING,
-        allowNull: false,
-        unique: true,
-        validate: {
-          isEmail: true,
+      {
+        sequelize,
+        modelName: 'User',
+        tableName: 'users',
+        timestamps: true,
+        underscored: true,
+        hooks: {
+          beforeSave: async (user) => {
+            if (user.changed('password')) {
+              user.password = await bcrypt.hash(user.password, 8);
+            }
+          },
         },
-      },
-      password: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
-      role: {
-        type: DataTypes.ENUM('admin', 'manager', 'technician'),
-        defaultValue: 'technician',
-      },
-      active: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: true,
-      },
-    }, {
-      sequelize,
-      tableName: 'users',
-      hooks: {
-        beforeSave: async (user) => {
-          if (user.password && user.changed('password')) {
-            user.password = await bcrypt.hash(user.password, 8);
-          }
-        },
-      },
-    });
+      }
+    );
+    return this;
   }
 
   static associate(models) {
-    this.hasMany(models.ServiceOrder, { 
-      foreignKey: 'created_by', 
-      as: 'service_orders' 
+    this.hasMany(models.ServiceOrder, {
+      foreignKey: 'created_by',
+      as: 'service_orders',
     });
     this.hasMany(models.MaintenanceHistory, {
       foreignKey: 'performed_by',
-      as: 'maintenance_history'
+      as: 'maintenance_history',
     });
   }
 

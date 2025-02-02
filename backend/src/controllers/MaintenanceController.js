@@ -1,5 +1,5 @@
 const {Equipment} = require('../models/Equipment');
-const {Maintenance} = require('../models/Maintenance')
+const {MaintenanceHistory} = require('../models/MaintenanceHistory')
 const {User} = require('../models/User');
 const NotificationService = require('../services/NotificationService');
 const S3Service = require('../services/S3Service');
@@ -42,7 +42,7 @@ class MaintenanceController {
       }
 
       // Cria registro de manutenção
-      const maintenance = await Maintenance.create({
+      const maintenance = await MaintenanceHistory.create({
         equipment_id,
         description,
         type,
@@ -99,7 +99,7 @@ class MaintenanceController {
         where['$Equipment.department$'] = user.department;
       }
 
-      const maintenances = await Maintenance.findAll({
+      const maintenances = await MaintenanceHistory.findAll({
         where,
         include: [
           {
@@ -133,7 +133,7 @@ class MaintenanceController {
         completion_notes
       } = req.body;
 
-      const maintenance = await Maintenance.findByPk(id, {
+      const maintenance = await MaintenanceHistory.findByPk(id, {
         include: [{ model: Equipment }]
       });
 
@@ -171,7 +171,7 @@ class MaintenanceController {
     try {
       const { id } = req.params;
 
-      const maintenance = await Maintenance.findByPk(id, {
+      const maintenance = await MaintenanceHistory.findByPk(id, {
         include: [
           {
             model: Equipment,

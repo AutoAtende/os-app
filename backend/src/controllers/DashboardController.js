@@ -1,5 +1,5 @@
 const {Equipment} = require('../models/Equipment');
-const {Maintenance} = require('../models/Maintenance')
+const {MaintenanceHistory} = require('../models/MaintenanceHistory')
 const {User} = require('../models/User');
 const { Op, Sequelize } = require('sequelize');
 const CacheService = require('../services/CacheService');
@@ -68,7 +68,7 @@ class DashboardController {
   }
 
   async getMaintenanceStats(startDate, endDate) {
-    const maintenances = await Maintenance.findAll({
+    const maintenances = await MaintenanceHistory.findAll({
       where: {
         created_at: {
           [Op.between]: [startDate, endDate]
@@ -99,7 +99,7 @@ class DashboardController {
   }
 
   async getPerformanceMetrics(startDate, endDate) {
-    const completedMaintenances = await Maintenance.findAll({
+    const completedMaintenances = await MaintenanceHistory.findAll({
       where: {
         status: 'completed',
         completion_date: {
@@ -136,7 +136,7 @@ class DashboardController {
     const nextWeek = new Date();
     nextWeek.setDate(nextWeek.getDate() + 7);
 
-    return await Maintenance.findAll({
+    return await MaintenanceHistory.findAll({
       where: {
         status: 'pending',
         scheduled_date: {
@@ -161,7 +161,7 @@ class DashboardController {
 
   async calculateCompletionRate(startDate, endDate) {
     const [completed, total] = await Promise.all([
-      Maintenance.count({
+      MaintenanceHistory.count({
         where: {
           status: 'completed',
           completion_date: {
@@ -169,7 +169,7 @@ class DashboardController {
           }
         }
       }),
-      Maintenance.count({
+      MaintenanceHistory.count({
         where: {
           created_at: {
             [Op.between]: [startDate, endDate]
@@ -182,7 +182,7 @@ class DashboardController {
   }
 
   async calculateTechnicianPerformance(startDate, endDate) {
-    const performances = await Maintenance.findAll({
+    const performances = await MaintenanceHistory.findAll({
       attributes: [
         [Sequelize.fn('COUNT', '*'), 'total'],
         [Sequelize.fn('AVG', 

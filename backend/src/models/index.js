@@ -1,34 +1,22 @@
-const Sequelize = require('sequelize');
-const config = require('../config/database');
-
-const env = process.env.NODE_ENV || 'development';
-const dbConfig = config[env];
+const { Sequelize } = require('sequelize');
+const dbConfig = require('../config/database');
 
 const sequelize = new Sequelize(dbConfig);
 
-// Importação dos modelos
-const Equipment = require('./Equipment');
-const File = require('./File');
-const User = require('./User');
-const Notification = require('./Notification');
-const MaintenanceHistory = require('./MaintenanceHistory');
-const ServiceOrder = require('./ServiceOrder');
+const User = require('./User')(sequelize);
+const ServiceOrder = require('./ServiceOrder')(sequelize);
+const MaintenanceHistory = require('./MaintenanceHistory')(sequelize);
+const Notification = require('./Notification')(sequelize);
+const File = require('./File')(sequelize);
+const Equipment = require('./Equipment')(sequelize);
+const Report = require('./Report')(sequelize);
 
-// Inicialização dos modelos
-const models = {
-  Equipment: Equipment.init(sequelize),
-  File: File.init(sequelize),
-  User: User.init(sequelize),
-  Notification: Notification.init(sequelize),
-  MaintenanceHistory: MaintenanceHistory.init(sequelize),
-  ServiceOrder: ServiceOrder.init(sequelize),
-};
+const models = { User, ServiceOrder, MaintenanceHistory, Notification, File, Equipment, Report };
 
-// Configuração das associações, caso existam
 Object.values(models).forEach(model => {
   if (model.associate) {
     model.associate(models);
   }
 });
 
-module.exports = { sequelize, ...models };
+module.exports = { sequelize, Sequelize, ...models };

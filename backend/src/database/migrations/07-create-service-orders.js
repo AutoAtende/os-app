@@ -1,6 +1,7 @@
+// src/database/migrations/08-create-service-orders.js
 module.exports = {
     up: async (queryInterface, Sequelize) => {
-      await queryInterface.createTable('maintenance', {
+      await queryInterface.createTable('service_orders', {
         id: {
           type: Sequelize.INTEGER,
           primaryKey: true,
@@ -12,29 +13,27 @@ module.exports = {
           onUpdate: 'CASCADE',
           onDelete: 'CASCADE'
         },
-        technician_id: {
-          type: Sequelize.INTEGER,
-          references: { model: 'users', key: 'id' },
-          onUpdate: 'CASCADE',
-          onDelete: 'SET NULL'
+        description: {
+          type: Sequelize.TEXT,
+          allowNull: false
         },
         type: {
           type: Sequelize.ENUM('preventive', 'corrective', 'predictive'),
           allowNull: false
         },
+        priority: {
+          type: Sequelize.ENUM('low', 'medium', 'high', 'critical'),
+          defaultValue: 'medium'
+        },
         status: {
           type: Sequelize.ENUM('pending', 'in_progress', 'completed', 'cancelled'),
           defaultValue: 'pending'
         },
-        description: {
-          type: Sequelize.TEXT,
-          allowNull: false
-        },
-        scheduled_date: {
+        scheduled_for: {
           type: Sequelize.DATE,
           allowNull: false
         },
-        completed_date: {
+        completed_at: {
           type: Sequelize.DATE
         },
         cost: {
@@ -44,6 +43,12 @@ module.exports = {
           type: Sequelize.TEXT
         },
         created_by: {
+          type: Sequelize.INTEGER,
+          references: { model: 'users', key: 'id' },
+          onUpdate: 'CASCADE',
+          onDelete: 'SET NULL'
+        },
+        assigned_to: {
           type: Sequelize.INTEGER,
           references: { model: 'users', key: 'id' },
           onUpdate: 'CASCADE',
@@ -60,6 +65,6 @@ module.exports = {
       });
     },
     down: async (queryInterface) => {
-      await queryInterface.dropTable('maintenance');
+      await queryInterface.dropTable('service_orders');
     }
   };

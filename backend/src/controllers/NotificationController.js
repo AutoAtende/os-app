@@ -1,5 +1,5 @@
 const {Equipment} = require('../models/Equipment');
-const {Maintenance} = require('../models/Maintenance')
+const {MaintenanceHistory} = require('../models/MaintenanceHistory')
 const {User} = require('../models/User');
 const {Notification} = require('../models/Notification');
 const NotificationService = require('../services/NotificationService');
