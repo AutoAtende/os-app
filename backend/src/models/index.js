@@ -1,38 +1,31 @@
+const fs = require('fs');
+const path = require('path');
 const Sequelize = require('sequelize');
 const config = require('../config/database');
-const User = require('./User');
-const Equipment = require('./Equipment');
-const ServiceOrder = require('./ServiceOrder');
-const MaintenanceHistory = require('./MaintenanceHistory');
-const Notification = require('./Notification');
-const File = require('./File');
-const Report = require('./Report');
 
-// Inicializa a conexão com o banco de dados
-const env = process.env.NODE_ENV || 'development';
-const sequelize = new Sequelize(config[env]);
+const db = {};
+const sequelize = new Sequelize(config[process.env.NODE_ENV || 'development']);
 
-// Define os modelos
-const models = {
-  User,
-  Equipment,
-  ServiceOrder,
-  MaintenanceHistory,
-  Notification,
-  File,
-  Report,
-  sequelize,
-  Sequelize
-};
+// Carrega todos os modelos automaticamente
+fs.readdirSync(__dirname)
+  .filter(file => {
+    return (file.indexOf('.') !== 0) && 
+           (file !== path.basename(__filename)) && 
+           (file.slice(-3) === '.js');
+  })
+  .forEach(file => {
+    const model = require(path.join(__dirname, file))(sequelize, Sequelize.DataTypes);
+    db[model.name] = model;
+  });
 
-// Inicializa os modelos
-Object.values(models)
-  .filter(model => typeof model.init === 'function')
-  .forEach(model => model.init(sequelize));
+// Configura as associações
+Object.keys(db).forEach(modelName => {
+  if (db[modelName].associate) {
+    db[modelName].associate(db);
+  }
+});
 
-// Define as associações
-Object.values(models)
-  .filter(model => typeof model.associate === 'function')
-  .forEach(model => model.associate(models));
+db.sequelize = sequelize;
+db.Sequelize = Sequelize;
 
-module.exports = models;
+module.exports = db;

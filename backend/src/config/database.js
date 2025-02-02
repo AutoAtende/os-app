@@ -6,36 +6,50 @@ module.exports = {
     password: process.env.DB_PASS,
     database: process.env.DB_NAME,
     host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    dialect: 'postgres', // Especificação explícita do dialeto
+    dialect: 'postgres',
+    logging: console.log,
     define: {
       timestamps: true,
       underscored: true,
+      underscoredAll: true
     },
-    logging: false,
+    pool: {
+      max: 5,
+      min: 0,
+      acquire: 30000,
+      idle: 10000
+    }
   },
   test: {
-    dialect: 'sqlite',
-    storage: './__tests__/database.sqlite',
+    username: process.env.DB_USER,
+    password: process.env.DB_PASS,
+    database: process.env.DB_NAME,
+    host: process.env.DB_HOST,
+    dialect: 'postgres',
     logging: false,
+    define: {
+      timestamps: true,
+      underscored: true,
+      underscoredAll: true
+    }
   },
   production: {
     username: process.env.DB_USER,
     password: process.env.DB_PASS,
     database: process.env.DB_NAME,
     host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    dialect: 'postgres', // Especificação explícita do dialeto
+    dialect: 'postgres',
+    logging: false,
     define: {
       timestamps: true,
       underscored: true,
+      underscoredAll: true
     },
-    logging: false,
     pool: {
-      max: 5,
-      min: 0,
+      max: 10,
+      min: 2,
       acquire: 30000,
-      idle: 10000,
-    },
-  },
+      idle: 10000
+    }
+  }
 };
