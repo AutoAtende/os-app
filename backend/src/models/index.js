@@ -1,7 +1,23 @@
 const { Sequelize } = require('sequelize');
-const dbConfig = require('../config/database');
+const config = require('../config/database');
 
-const sequelize = new Sequelize(dbConfig);
+const env = process.env.NODE_ENV || 'development';
+const dbConfig = config[env];
+
+// Criação da instância do Sequelize com configuração explícita do dialeto
+const sequelize = new Sequelize(
+  dbConfig.database,
+  dbConfig.username,
+  dbConfig.password,
+  {
+    host: dbConfig.host,
+    port: dbConfig.port,
+    dialect: dbConfig.dialect, // Isso é importante!
+    define: dbConfig.define,
+    logging: dbConfig.logging,
+    pool: dbConfig.pool
+  }
+);
 
 const User = require('./User')(sequelize);
 const ServiceOrder = require('./ServiceOrder')(sequelize);
@@ -11,7 +27,15 @@ const File = require('./File')(sequelize);
 const Equipment = require('./Equipment')(sequelize);
 const Report = require('./Report')(sequelize);
 
-const models = { User, ServiceOrder, MaintenanceHistory, Notification, File, Equipment, Report };
+const models = { 
+  User, 
+  ServiceOrder, 
+  MaintenanceHistory, 
+  Notification, 
+  File, 
+  Equipment, 
+  Report 
+};
 
 Object.values(models).forEach(model => {
   if (model.associate) {
@@ -19,4 +43,8 @@ Object.values(models).forEach(model => {
   }
 });
 
-module.exports = { sequelize, Sequelize, ...models };
+module.exports = { 
+  sequelize, 
+  Sequelize, 
+  ...models 
+};
