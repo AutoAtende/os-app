@@ -14,11 +14,11 @@ fs.readdirSync(__dirname)
            (file.slice(-3) === '.js');
   })
   .forEach(file => {
-    const model = require(path.join(__dirname, file))(sequelize, Sequelize.DataTypes);
-    db[model.name] = model;
+    const model = require(path.join(__dirname, file));
+    const ModelClass = model(sequelize, Sequelize.DataTypes);
+    db[ModelClass.name] = ModelClass;
   });
 
-// Configura as associações
 Object.keys(db).forEach(modelName => {
   if (db[modelName].associate) {
     db[modelName].associate(db);

@@ -1,49 +1,58 @@
-const {Equipment} = require('../models/Equipment');
-const {MaintenanceHistory} = require('../models/MaintenanceHistory');
-const {User} = require('../models/User');
+const { Equipment, MaintenanceHistory, User, ServiceOrder } = require('../models');
+const { Op } = require('sequelize');
 const QRCode = require('qrcode');
 
 class EquipmentController {
   async store(req, res) {
-    const equipment = await Equipment.create(req.body);
+    try {
+      const equipment = await Equipment.create(req.body);
 
-    // Gera QR Code
-    const qrcodeData = `${process.env.APP_URL}/equipment/${equipment.id}`;
-    const qrcodeUrl = await QRCode.toDataURL(qrcodeData);
-    
-    await equipment.update({ qrcode_url: qrcodeUrl });
+      // Gera QR Code
+      const qrcodeData = `${process.env.APP_URL}/equipment/${equipment.id}`;
+      const qrcodeUrl = await QRCode.toDataURL(qrcodeData);
+      
+      await equipment.update({ qrcode_url: qrcodeUrl });
 
-    return res.status(201).json(equipment);
+      return res.status(201).json(equipment);
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ error: 'Erro ao criar equipamento' });
+    }
   }
 
   async index(req, res) {
-    const { department, status, search } = req.query;
-    const where = {};
+    try {
+      const { department, status, search } = req.query;
+      const where = {};
 
-    if (department) where.department = department;
-    if (status) where.status = status;
-    if (search) {
-      where[Op.or] = [
-        { name: { [Op.iLike]: `%${search}%` } },
-        { code: { [Op.iLike]: `%${search}%` } },
-        { serial_number: { [Op.iLike]: `%${search}%` } },
-      ];
+      if (department) where.department = department;
+      if (status) where.status = status;
+      if (search) {
+        where[Op.or] = [
+          { name: { [Op.iLike]: `%${search}%` } },
+          { code: { [Op.iLike]: `%${search}%` } },
+          { serial_number: { [Op.iLike]: `%${search}%` } },
+        ];
+      }
+
+      const equipment = await Equipment.findAll({
+        where,
+        include: [
+          {
+            model: MaintenanceHistory,
+            as: 'maintenance_history',
+            limit: 1,
+            order: [['maintenance_date', 'DESC']],
+          },
+        ],
+        order: [['created_at', 'DESC']],
+      });
+
+      return res.json(equipment);
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ error: 'Erro ao listar equipamentos' });
     }
-
-    const equipment = await Equipment.findAll({
-      where,
-      include: [
-        {
-          model: MaintenanceHistory,
-          as: 'maintenance_history',
-          limit: 1,
-          order: [['maintenance_date', 'DESC']],
-        },
-      ],
-      order: [['created_at', 'DESC']],
-    });
-
-    return res.json(equipment);
   }
 
   async show(req, res) {

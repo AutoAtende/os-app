@@ -1,56 +1,47 @@
-const { Model, DataTypes } = require('sequelize');
-
-class Equipment extends Model {
-  static init(sequelize) {
-    super.init(
-      {
-        name: {
-          type: DataTypes.STRING,
-          allowNull: false,
-          validate: {
-            notEmpty: true,
-          },
-        },
-        code: {
-          type: DataTypes.STRING,
-          allowNull: false,
-          unique: true,
-        },
-        serial_number: DataTypes.STRING,
-        department: {
-          type: DataTypes.STRING,
-          allowNull: false,
-        },
-        description: DataTypes.TEXT,
-        status: {
-          type: DataTypes.ENUM('active', 'maintenance', 'inactive'),
-          defaultValue: 'active',
-        },
-        qrcode_url: DataTypes.STRING,
-        last_maintenance: DataTypes.DATE,
-        maintenance_frequency: {
-          type: DataTypes.INTEGER,
-          defaultValue: 30,
-        },
+module.exports = (sequelize, DataTypes) => {
+  const Equipment = sequelize.define('Equipment', {
+    name: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      validate: {
+        notEmpty: true,
       },
-      {
-        sequelize,
-        tableName: 'equipment',
-      }
-    );
-    return this;
-  }
+    },
+    code: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+    },
+    serial_number: DataTypes.STRING,
+    department: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    description: DataTypes.TEXT,
+    status: {
+      type: DataTypes.ENUM('active', 'maintenance', 'inactive'),
+      defaultValue: 'active',
+    },
+    qrcode_url: DataTypes.STRING,
+    last_maintenance: DataTypes.DATE,
+    maintenance_frequency: {
+      type: DataTypes.INTEGER,
+      defaultValue: 30,
+    },
+  }, {
+    tableName: 'equipment'
+  });
 
-  static associate(models) {
-    this.hasMany(models.ServiceOrder, {
+  Equipment.associate = function(models) {
+    Equipment.hasMany(models.ServiceOrder, {
       foreignKey: 'equipment_id',
       as: 'service_orders',
     });
-    this.hasMany(models.MaintenanceHistory, {
+    Equipment.hasMany(models.MaintenanceHistory, {
       foreignKey: 'equipment_id',
       as: 'maintenance_history',
     });
-  }
-}
+  };
 
-module.exports = Equipment;
+  return Equipment;
+};

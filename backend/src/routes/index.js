@@ -3,11 +3,6 @@ const router = express.Router();
 const multer = require('multer');
 const multerConfig = require('../config/multer');
 
-// Middlewares
-const AuthMiddleware = require('../middlewares/auth');
-const validate = require('../middlewares/validate');
-const schemas = require('../validations/schemas');
-
 // Controllers
 const AuthController = require('../controllers/AuthController');
 const EquipmentController = require('../controllers/EquipmentController');
@@ -17,6 +12,11 @@ const MaintenanceController = require('../controllers/MaintenanceController');
 const NotificationController = require('../controllers/NotificationController');
 const ReportController = require('../controllers/ReportController');
 const DashboardController = require('../controllers/DashboardController');
+
+// Middlewares
+const AuthMiddleware = require('../middlewares/auth');
+const validate = require('../middlewares/validate');
+const schemas = require('../validations/schemas');
 
 const upload = multer(multerConfig);
 
@@ -36,6 +36,7 @@ router.post('/equipment',
   upload.single('image'),
   EquipmentController.store
 );
+
 router.get('/equipment/:id', AuthMiddleware.hasDepartmentAccess, EquipmentController.show);
 router.put('/equipment/:id',
   AuthMiddleware.hasRole(['admin', 'manager']),
