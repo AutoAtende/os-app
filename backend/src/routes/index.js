@@ -36,7 +36,6 @@ router.post('/equipment',
   upload.single('image'),
   EquipmentController.store
 );
-
 router.get('/equipment/:id', AuthMiddleware.hasDepartmentAccess, EquipmentController.show);
 router.put('/equipment/:id',
   AuthMiddleware.hasRole(['admin', 'manager']),
