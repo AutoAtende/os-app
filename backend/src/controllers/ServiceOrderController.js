@@ -88,6 +88,49 @@ class ServiceOrderController {
     return res.json(serviceOrders);
   }
 
+  async show(req, res) {
+    try {
+      const serviceOrder = await ServiceOrder.findByPk(req.params.id, {
+        include: [
+          {
+            model: Equipment,
+            as: 'equipment',
+            attributes: ['id', 'name', 'code', 'department']
+          },
+          {
+            model: User,
+            as: 'creator',
+            attributes: ['id', 'name']
+          },
+          {
+            model: User,
+            as: 'technician',
+            attributes: ['id', 'name']
+          },
+          {
+            model: File,
+            as: 'files'
+          }
+        ]
+      });
+  
+      if (!serviceOrder) {
+        return res.status(404).json({ error: 'Ordem de serviço não encontrada' });
+      }
+  
+      // Verifica permissão de acesso ao departamento
+      if (req.userRole !== 'admin' && 
+          serviceOrder.equipment.department !== req.userDepartment) {
+        return res.status(403).json({ error: 'Acesso não autorizado' });
+      }
+  
+      return res.json(serviceOrder);
+    } catch (error) {
+      console.error('Erro ao buscar ordem de serviço:', error);
+      return res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+  }
+
   async update(req, res) {
     const serviceOrder = await ServiceOrder.findByPk(req.params.id);
 

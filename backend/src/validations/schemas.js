@@ -7,33 +7,7 @@ const schemas = {
       .required('Email é obrigatório'),
     password: yup.string()
       .required('Senha é obrigatória')
-  }),
-
-  userSchema: yup.object().shape({
-    name: yup.string()
-      .required('Nome é obrigatório')
-      .min(3, 'Nome deve ter no mínimo 3 caracteres'),
-    email: yup.string()
-      .email('Email inválido')
-      .required('Email é obrigatório'),
-    password: yup.string()
-      .required('Senha é obrigatória')
-      .min(6, 'Senha deve ter no mínimo 6 caracteres'),
-    role: yup.string()
-      .oneOf(['admin', 'manager', 'technician'], 'Papel inválido')
-      .required('Papel é obrigatório'),
-    department: yup.string()
-      .required('Departamento é obrigatório')
-  }),
-
-  userUpdateSchema: yup.object().shape({
-    name: yup.string()
-      .min(3, 'Nome deve ter no mínimo 3 caracteres'),
-    email: yup.string()
-      .email('Email inválido'),
-    role: yup.string()
-      .oneOf(['admin', 'manager', 'technician'], 'Papel inválido'),
-    department: yup.string()
+      .min(6, 'Senha deve ter no mínimo 6 caracteres')
   }),
 
   equipmentSchema: yup.object().shape({
@@ -43,6 +17,7 @@ const schemas = {
     code: yup.string()
       .required('Código é obrigatório')
       .matches(/^[A-Za-z0-9-]+$/, 'Código deve conter apenas letras, números e hífen'),
+    serial_number: yup.string(),
     department: yup.string()
       .required('Departamento é obrigatório'),
     description: yup.string()
@@ -70,7 +45,13 @@ const schemas = {
   serviceOrderUpdateSchema: yup.object().shape({
     status: yup.string()
       .oneOf(['pending', 'in_progress', 'completed', 'cancelled'], 'Status inválido')
-      .required('Status é obrigatório')
+      .required('Status é obrigatório'),
+    notes: yup.string(),
+    completion_notes: yup.string()
+      .when('status', {
+        is: 'completed',
+        then: yup.string().required('Notas de conclusão são obrigatórias')
+      })
   }),
 
   maintenanceSchema: yup.object().shape({
@@ -92,11 +73,43 @@ const schemas = {
     status: yup.string()
       .oneOf(['pending', 'in_progress', 'completed'], 'Status inválido')
       .required('Status é obrigatório'),
+    notes: yup.string(),
+    cost: yup.number()
+      .min(0, 'Custo não pode ser negativo'),
     completion_notes: yup.string()
       .when('status', {
         is: 'completed',
         then: yup.string().required('Notas de conclusão são obrigatórias')
       })
+  }),
+
+  userSchema: yup.object().shape({
+    name: yup.string()
+      .required('Nome é obrigatório')
+      .min(3, 'Nome deve ter no mínimo 3 caracteres'),
+    email: yup.string()
+      .email('Email inválido')
+      .required('Email é obrigatório'),
+    password: yup.string()
+      .required('Senha é obrigatória')
+      .min(6, 'Senha deve ter no mínimo 6 caracteres'),
+    role: yup.string()
+      .oneOf(['admin', 'manager', 'technician'], 'Função inválida')
+      .required('Função é obrigatória'),
+    department: yup.string()
+      .required('Departamento é obrigatório')
+  }),
+
+  userUpdateSchema: yup.object().shape({
+    name: yup.string()
+      .min(3, 'Nome deve ter no mínimo 3 caracteres'),
+    email: yup.string()
+      .email('Email inválido'),
+    password: yup.string()
+      .min(6, 'Senha deve ter no mínimo 6 caracteres'),
+    role: yup.string()
+      .oneOf(['admin', 'manager', 'technician'], 'Função inválida'),
+    department: yup.string()
   })
 };
 
