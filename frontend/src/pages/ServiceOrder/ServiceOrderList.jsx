@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Badge } from '@/components/ui';
 import { Calendar, Clock, Tool, AlertTriangle } from 'lucide-react';
-import api from '../services/api';
+import api from '../../services/api';
 
 export default function ServiceOrderList() {
   const [orders, setOrders] = useState([]);
