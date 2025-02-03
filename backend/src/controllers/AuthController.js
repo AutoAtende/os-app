@@ -1,7 +1,8 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const { User } = require('../models/User');
+const { User } = require('../models');
+console.log('Modelo User:', !!User);
 const { Op } = require('sequelize');
 const EmailService = require('../services/emailService');
 const logger = require('../utils/logger');
@@ -10,7 +11,7 @@ class AuthController {
   async login(req, res) {
     try {
       const { email, password } = req.body;
-
+      logger.info('Tentativa de login:', { email });
       const user = await User.findOne({
         where: { 
           email,
