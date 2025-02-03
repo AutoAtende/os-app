@@ -1,8 +1,7 @@
 import React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
-// Importações do shadcn/ui
 import {
   Sheet,
   SheetContent,
@@ -19,7 +18,6 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 
-// Importações do Lucide Icons
 import {
   Menu,
   LayoutDashboard,
@@ -32,7 +30,7 @@ import {
   Bell
 } from 'lucide-react';
 
-const Layout = ({ children }) => {
+const Layout = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -74,7 +72,6 @@ const Layout = ({ children }) => {
               onClick={() => navigate('/notifications')}
             >
               <Bell className="h-4 w-4" />
-              {/* Notification badge would go here */}
             </Button>
 
             <DropdownMenu>
@@ -159,7 +156,7 @@ const Layout = ({ children }) => {
       {/* Main Content */}
       <main className="lg:pl-72">
         <div className="px-4 sm:px-6 lg:px-8 py-6">
-          {children}
+          <Outlet />
         </div>
       </main>
     </div>
