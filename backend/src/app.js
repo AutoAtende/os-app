@@ -6,6 +6,7 @@ const morgan = require('morgan');
 const routes = require('./routes');
 const { errorHandler } = require('./middlewares/errorHandler');
 const db = require('./models');
+const security = require('./middlewares/security');
 
 const app = express();
 
@@ -15,6 +16,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
+
+// Aplicar middlewares de segurança
+app.use(security.basic);
+app.use('/api/auth', security.rateLimit.auth);
+app.use('/api', security.rateLimit.all);
 
 // Rotas
 app.use('/api', routes);
@@ -60,6 +66,8 @@ process.on('unhandledRejection', (error) => {
   process.exit(1);
 });
 
-initializeApp();
+if (require.main === module) {
+  initializeApp();
+}
 
 module.exports = app;
