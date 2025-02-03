@@ -4,35 +4,22 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const routes = require('./routes');
-const { errorHandler } = require('./middlewares/errorHandler');
+const errorHandler = require('./middlewares/errorHandler');
 const db = require('./models');
-const security = require('./middlewares/security');
 
 const app = express();
 
-// Middlewares básicos
-app.use(helmet());
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+// Middlewares essenciais
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cors());
+app.use(helmet());
 app.use(morgan('dev'));
-
-// Aplicar cada middleware de segurança individualmente
-app.use(security.sanitizeData);
-app.use(security.validateUpload);
-
-// Rate limiting
-app.use('/api/auth', security.rateLimit.auth);
-app.use('/api', security.rateLimit.all);
 
 // Rotas
 app.use('/api', routes);
 
-// Tratamento de erros
+// Tratamento de erros (deve ser o último middleware)
 app.use(errorHandler);
 
 // Sincronização com o banco de dados
@@ -62,15 +49,8 @@ const initializeApp = async () => {
   });
 };
 
-// Tratamento de erros não capturados
-process.on('uncaughtException', (error) => {
-  console.error('Erro não capturado:', error);
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (error) => {
-  console.error('Promise rejeitada não tratada:', error);
-  process.exit(1);
-});
+if (require.main === module) {
+  initializeApp();
+}
 
 module.exports = app;
