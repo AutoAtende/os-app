@@ -54,33 +54,39 @@ export function AuthProvider({ children }) {
       setLoading(false);
     }, []);
 
-  async function signIn({ email, password }) {
-    try {
-      const response = await api.post('/auth/login', { email, password });
-      const { token, user } = response.data;
+// No AuthContext.js
+async function signIn({ email, password }) {
+  try {
+    const response = await api.post('/auth/login', { email, password });
+    
+    const { token, user } = response.data;
 
-      localStorage.setItem('@EquipmentManagement:token', token);
-      localStorage.setItem('@EquipmentManagement:user', JSON.stringify(user));
-      
-      api.defaults.headers.authorization = `Bearer ${token}`;
-      setUser(user);
-
-      toast({
-        title: "Login realizado com sucesso",
-        description: `Bem-vindo(a), ${user.name}!`
-      });
-
-      return { success: true };
-    } catch (error) {
-      const message = error.response?.data?.error || 'Erro ao realizar login';
-      toast({
-        variant: "destructive",
-        title: "Erro no login",
-        description: message
-      });
-      return { success: false, error: message };
+    if (!token || !user) {
+      throw new Error('Resposta inválida do servidor');
     }
+
+    localStorage.setItem('@EquipmentManagement:token', token);
+    localStorage.setItem('@EquipmentManagement:user', JSON.stringify(user));
+    
+    api.defaults.headers.authorization = `Bearer ${token}`;
+    setUser(user);
+
+    toast({
+      title: "Login realizado com sucesso",
+      description: `Bem-vindo(a), ${user.name}!`
+    });
+
+    return { success: true };
+  } catch (error) {
+    const message = error.response?.data?.error || 'Erro ao realizar login';
+    toast({
+      variant: "destructive",
+      title: "Erro no login",
+      description: message
+    });
+    return { success: false, error: message };
   }
+}
 
   function signOut() {
     localStorage.removeItem('@EquipmentManagement:token');

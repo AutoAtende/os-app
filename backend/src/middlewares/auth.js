@@ -5,27 +5,40 @@ class AuthMiddleware {
   async authenticate(req, res, next) {
     try {
       const authHeader = req.headers.authorization;
-
+  
       if (!authHeader) {
         return res.status(401).json({ error: 'Token não fornecido' });
       }
-
+  
       const [, token] = authHeader.split(' ');
-
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      
-      const user = await User.findByPk(decoded.id);
-      
-      if (!user || !user.active) {
-        return res.status(401).json({ error: 'Usuário inválido ou inativo' });
+  
+      if (!token) {
+        return res.status(401).json({ error: 'Token mal formatado' });
       }
-
-      req.userId = user.id;
-      req.userRole = user.role;
-      
-      next();
+  
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        const user = await User.findOne({ 
+          where: { 
+            id: decoded.id,
+            active: true 
+          }
+        });
+        
+        if (!user) {
+          return res.status(401).json({ error: 'Usuário não encontrado ou inativo' });
+        }
+  
+        req.userId = user.id;
+        req.userRole = user.role;
+        
+        return next();
+      } catch (err) {
+        return res.status(401).json({ error: 'Token inválido' });
+      }
     } catch (error) {
-      return res.status(401).json({ error: 'Token inválido' });
+      return res.status(500).json({ error: 'Erro interno do servidor' });
     }
   }
 

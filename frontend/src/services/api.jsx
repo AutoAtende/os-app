@@ -40,60 +40,20 @@ api.interceptors.response.use(
       return Promise.reject(new Error('Erro de conexão'));
     }
 
-    // Token expirado ou inválido
+    // Melhoria no tratamento de erro 401
     if (error.response.status === 401) {
-      localStorage.removeItem('@EquipmentManagement:token');
-      localStorage.removeItem('@EquipmentManagement:user');
-      
-      // Recarrega a página apenas se não estiver na página de login
-      if (!window.location.pathname.includes('/login')) {
-        toast({
-          variant: "destructive",
-          title: "Sessão expirada",
-          description: "Por favor, faça login novamente"
-        });
+      // Só limpa o storage se não for tentativa de login
+      if (!error.config.url.includes('/auth/login')) {
+        localStorage.removeItem('@EquipmentManagement:token');
+        localStorage.removeItem('@EquipmentManagement:user');
         window.location.href = '/login';
-      }
-      return Promise.reject(new Error('Sessão expirada'));
-    }
-
-    // Erro de permissão
-    if (error.response.status === 403) {
-      toast({
-        variant: "destructive",
-        title: "Acesso negado",
-        description: "Você não tem permissão para realizar esta ação"
-      });
-      return Promise.reject(new Error('Acesso negado'));
-    }
-
-    // Erro de validação
-    if (error.response.status === 422) {
-      const errors = error.response.data.errors;
-      if (Array.isArray(errors)) {
-        errors.forEach(err => {
-          toast({
-            variant: "destructive",
-            title: "Erro de validação",
-            description: err.message
-          });
-        });
       }
       return Promise.reject(error.response.data);
     }
 
-    // Outros erros
-    const errorMessage = error.response.data?.message || error.response.data?.error || 'Ocorreu um erro inesperado';
-    toast({
-      variant: "destructive",
-      title: "Erro",
-      description: errorMessage
-    });
-
     return Promise.reject(error.response.data);
   }
 );
-
 // Funções auxiliares para endpoints comuns
 export const endpoints = {
   auth: {
