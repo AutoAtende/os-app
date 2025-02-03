@@ -12,13 +12,20 @@ const app = express();
 
 // Middlewares básicos
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
-// Aplicar middlewares de segurança
-app.use(security.basic);
+// Aplicar cada middleware de segurança individualmente
+app.use(security.sanitizeData);
+app.use(security.validateUpload);
+
+// Rate limiting
 app.use('/api/auth', security.rateLimit.auth);
 app.use('/api', security.rateLimit.all);
 
@@ -65,9 +72,5 @@ process.on('unhandledRejection', (error) => {
   console.error('Promise rejeitada não tratada:', error);
   process.exit(1);
 });
-
-if (require.main === module) {
-  initializeApp();
-}
 
 module.exports = app;
