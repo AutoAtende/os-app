@@ -1,4 +1,5 @@
 const Redis = require('ioredis');
+const logger = require('../utils/logger');
 
 const redisConfig = {
   host: process.env.REDIS_HOST || 'localhost',
@@ -6,37 +7,48 @@ const redisConfig = {
   password: process.env.REDIS_PASSWORD,
   maxRetriesPerRequest: 3,
   retryStrategy(times) {
+    if (times > 3) {
+      return null; // Desiste após 3 tentativas
+    }
     const delay = Math.min(times * 50, 2000);
     return delay;
   },
-  reconnectOnError(err) {
-    const targetError = 'READONLY';
-    if (err.message.includes(targetError)) {
-      return true;
-    }
-    return false;
-  }
+  lazyConnect: true // Não tenta conectar automaticamente
 };
 
 let redisClient = null;
 
-const getRedisClient = () => {
+const getRedisClient = async () => {
   if (!redisClient) {
-    redisClient = new Redis(redisConfig);
+    try {
+      redisClient = new Redis(redisConfig);
+      
+      // Tenta conectar
+      await redisClient.connect();
+      
+      redisClient.on('error', (error) => {
+        logger.warn('Erro na conexão com Redis:', error);
+      });
 
-    redisClient.on('error', (error) => {
-      console.error('Erro na conexão com Redis:', error);
-    });
-
-    redisClient.on('connect', () => {
-      console.log('Conectado ao Redis');
-    });
+      redisClient.on('connect', () => {
+        logger.info('Conectado ao Redis');
+      });
+    } catch (error) {
+      logger.warn('Redis não disponível, sistema funcionará sem cache:', error.message);
+      return null;
+    }
   }
-
   return redisClient;
+};
+
+// Função para verificar se o Redis está disponível
+const isRedisAvailable = async () => {
+  const client = await getRedisClient();
+  return client !== null;
 };
 
 module.exports = {
   getRedisClient,
+  isRedisAvailable,
   redisConfig
 };
