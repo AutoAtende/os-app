@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, Tool, AlertTriangle } from 'lucide-react';
+import { Calendar, Clock, PenTool, AlertTriangle } from 'lucide-react';
 import api from '../../services/api';
 
 export default function ServiceOrderList() {
@@ -86,7 +86,7 @@ export default function ServiceOrderList() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <Tool className="w-4 h-4" />
+                    <PenTool className="w-4 h-4" />
                     <span>Técnico: {order.technician?.name || 'Não atribuído'}</span>
                   </div>
 
