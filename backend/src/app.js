@@ -17,7 +17,7 @@ app.use(helmet());
 app.use(morgan('dev'));
 
 // Rotas
-app.use('/api', routes);
+app.use('/', routes);
 
 // Tratamento de erros (deve ser o último middleware)
 app.use(errorHandler);
