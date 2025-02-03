@@ -40,15 +40,13 @@ function Login() {
 
   const onSubmit = async (values) => {
     try {
-      setIsLoading(true);
+      // Usamos form.formState.isSubmitting ao invés de um estado separado
       const response = await signIn(values);
       if (response.success) {
         navigate('/dashboard');
       }
     } catch (error) {
       console.error('Erro no login:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
