@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Badge } from '@/components/ui';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock, Tool, AlertTriangle } from 'lucide-react';
 import api from '../../services/api';
 
