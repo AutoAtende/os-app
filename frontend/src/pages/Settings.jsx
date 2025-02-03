@@ -24,7 +24,7 @@ import {
   Email,
   Settings as SettingsIcon
 } from '@mui/icons-material';
-import api from '../../services/api';
+import api from '../services/api';
 
 const Settings = () => {
   const [loading, setLoading] = useState(true);

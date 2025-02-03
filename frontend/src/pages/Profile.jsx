@@ -17,8 +17,8 @@ import {
   PhotoCamera,
   Delete as DeleteIcon
 } from '@mui/icons-material';
-import { useAuth } from '../../contexts/AuthContext';
-import api from '../../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import api from '../services/api';
 
 const Profile = () => {
   const { user, updateUser } = useAuth();
