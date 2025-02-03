@@ -1,15 +1,14 @@
 import axios from 'axios';
-import { toast } from '@/hooks/use-toast';
+import { toast } from "@/components/ui/use-toast";
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://oss-api.autoatende.com',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   }
 });
 
-// Interceptor para adicionar token em todas as requisições
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('@EquipmentManagement:token');
   
@@ -17,17 +16,11 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  // Para requisições com FormData, remover o Content-Type para que o navegador defina automaticamente
-  if (config.data instanceof FormData) {
-    delete config.headers['Content-Type'];
-  }
-
   return config;
 }, (error) => {
   return Promise.reject(error);
 });
 
-// Interceptor para tratamento de respostas e erros
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
@@ -40,15 +33,19 @@ api.interceptors.response.use(
       return Promise.reject(new Error('Erro de conexão'));
     }
 
-    // Melhoria no tratamento de erro 401
+    // Token expirado ou inválido
     if (error.response.status === 401) {
-      // Só limpa o storage se não for tentativa de login
-      if (!error.config.url.includes('/auth/login')) {
-        localStorage.removeItem('@EquipmentManagement:token');
-        localStorage.removeItem('@EquipmentManagement:user');
+      localStorage.removeItem('@EquipmentManagement:token');
+      localStorage.removeItem('@EquipmentManagement:user');
+      
+      if (!window.location.pathname.includes('/login')) {
+        toast({
+          variant: "destructive",
+          title: "Sessão expirada",
+          description: "Por favor, faça login novamente"
+        });
         window.location.href = '/login';
       }
-      return Promise.reject(error.response.data);
     }
 
     return Promise.reject(error.response.data);

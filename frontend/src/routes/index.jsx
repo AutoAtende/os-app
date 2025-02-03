@@ -1,57 +1,90 @@
 // src/routes/index.jsx
-import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import Layout from '@/components/Layout';
-import { Loader2 } from "lucide-react";
-import ErrorBoundary from '@/components/ErrorBoundary';
+import { useAuth } from '../contexts/AuthContext';
+import Layout from '../components/Layout';
+import Login from '../pages/Login';
 
-// Lazy loading das páginas
-const Login = lazy(() => import('@/pages/Login/Login'));
-const Dashboard = lazy(() => import('@/pages/Dashboard/Dashboard'));
-const EquipmentList = lazy(() => import('@/pages/Equipment/EquipmentList'));
-const EquipmentForm = lazy(() => import('@/pages/Equipment/EquipmentForm'));
-const MaintenanceList = lazy(() => import('@/pages/Maintenance/MaintenanceList'));
-const MaintenanceForm = lazy(() => import('@/pages/Maintenance/MaintenanceForm'));
-const Profile = lazy(() => import('@/pages/Profile/Profile'));
+// Páginas
+import Dashboard from '../pages/Dashboard';
+import EquipmentList from '../pages/Equipment/EquipmentList';
+import EquipmentForm from '../pages/Equipment/EquipmentForm';
+import EquipmentQRCode from '../pages/Equipment/EquipmentQRCode';
+import MaintenanceList from '../pages/Maintenance/MaintenanceList';
+import MaintenanceForm from '../pages/Maintenance/MaintenanceForm';
+import ServiceOrderList from '../pages/ServiceOrder/ServiceOrderList';
+import ServiceOrderForm from '../pages/ServiceOrder/ServiceOrderForm';
+import UserList from '../pages/User/UserList';
+import UserForm from '../pages/User/UserForm';
+import Profile from '../pages/Profile';
+import Settings from '../pages/Settings';
 
-const Router = () => {
-  const { signed, loading } = useAuth();
+function Router() {
+  const { signed, loading, user } = useAuth();
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
-    <ErrorBoundary>
-      <Routes>
-        <Route path="/login" element={
-          !signed ? <Login /> : <Navigate to="/" />
-        } />
+    <Routes>
+      {!signed ? (
+        <>
+          <Route path="/login" element={<Login />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </>
+      ) : (
+        <>
+          <Route path="/" element={<Layout />}>
+            {/* Dashboard */}
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="dashboard" element={<Dashboard />} />
 
-        <Route path="/" element={
-          signed ? <Layout /> : <Navigate to="/login" />
-        }>
-          <Route index element={<Dashboard />} />
-          <Route path="equipamentos">
-            <Route index element={<EquipmentList />} />
-            <Route path="novo" element={<EquipmentForm />} />
-            <Route path=":id/editar" element={<EquipmentForm />} />
+            {/* Equipamentos */}
+            <Route path="equipment">
+              <Route index element={<EquipmentList />} />
+              <Route path="new" element={<EquipmentForm />} />
+              <Route path=":id/edit" element={<EquipmentForm />} />
+              <Route path=":id/qrcode" element={<EquipmentQRCode />} />
+            </Route>
+
+            {/* Manutenções */}
+            <Route path="maintenance">
+              <Route index element={<MaintenanceList />} />
+              <Route path="new" element={<MaintenanceForm />} />
+              <Route path=":id/edit" element={<MaintenanceForm />} />
+            </Route>
+
+            {/* Ordens de Serviço */}
+            <Route path="service-orders">
+              <Route index element={<ServiceOrderList />} />
+              <Route path="new" element={<ServiceOrderForm />} />
+              <Route path=":id/edit" element={<ServiceOrderForm />} />
+            </Route>
+
+            {/* Usuários - Apenas admin */}
+            {user?.role === 'admin' && (
+              <Route path="users">
+                <Route index element={<UserList />} />
+                <Route path="new" element={<UserForm />} />
+                <Route path=":id/edit" element={<UserForm />} />
+              </Route>
+            )}
+
+            {/* Perfil e Configurações */}
+            <Route path="profile" element={<Profile />} />
+            <Route path="settings" element={<Settings />} />
+
+            {/* Rota 404 */}
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
-          <Route path="manutencoes">
-            <Route index element={<MaintenanceList />} />
-            <Route path="nova" element={<MaintenanceForm />} />
-            <Route path=":id/editar" element={<MaintenanceForm />} />
-          </Route>
-          <Route path="perfil" element={<Profile />} />
-        </Route>
-      </Routes>
-    </ErrorBoundary>
+        </>
+      )}
+    </Routes>
   );
-};
+}
 
 export default Router;

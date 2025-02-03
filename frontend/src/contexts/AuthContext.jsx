@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { api } from '@/services/api';
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 
 const AuthContext = createContext({});
 
@@ -21,7 +21,7 @@ export function AuthProvider({ children }) {
 
           // Validar token
           const response = await api.post('/auth/validate-token', { token: storedToken });
-          if (!response.data.valid) {
+          if (!response.valid) {
             throw new Error('Token inválido');
           }
         }
@@ -41,52 +41,33 @@ export function AuthProvider({ children }) {
     loadStorageData();
   }, [toast]);
 
-  // No AuthContext
-    useEffect(() => {
-      const token = localStorage.getItem('@EquipmentManagement:token');
-      const user = localStorage.getItem('@EquipmentManagement:user');
+  async function signIn({ email, password }) {
+    try {
+      const response = await api.post('/auth/login', { email, password });
+      const { token, user } = response;
 
-      if (token && user) {
-        api.defaults.headers.authorization = `Bearer ${token}`;
-        setUser(JSON.parse(user));
-      }
+      localStorage.setItem('@EquipmentManagement:token', token);
+      localStorage.setItem('@EquipmentManagement:user', JSON.stringify(user));
       
-      setLoading(false);
-    }, []);
+      api.defaults.headers.authorization = `Bearer ${token}`;
+      setUser(user);
 
-// No AuthContext.js
-async function signIn({ email, password }) {
-  try {
-    const response = await api.post('/auth/login', { email, password });
-    
-    const { token, user } = response.data;
+      toast({
+        title: "Login realizado com sucesso",
+        description: `Bem-vindo(a), ${user.name}!`
+      });
 
-    if (!token || !user) {
-      throw new Error('Resposta inválida do servidor');
+      return { success: true };
+    } catch (error) {
+      const message = error.response?.data?.error || 'Erro ao realizar login';
+      toast({
+        variant: "destructive",
+        title: "Erro no login",
+        description: message
+      });
+      return { success: false, error: message };
     }
-
-    localStorage.setItem('@EquipmentManagement:token', token);
-    localStorage.setItem('@EquipmentManagement:user', JSON.stringify(user));
-    
-    api.defaults.headers.authorization = `Bearer ${token}`;
-    setUser(user);
-
-    toast({
-      title: "Login realizado com sucesso",
-      description: `Bem-vindo(a), ${user.name}!`
-    });
-
-    return { success: true };
-  } catch (error) {
-    const message = error.response?.data?.error || 'Erro ao realizar login';
-    toast({
-      variant: "destructive",
-      title: "Erro no login",
-      description: message
-    });
-    return { success: false, error: message };
   }
-}
 
   function signOut() {
     localStorage.removeItem('@EquipmentManagement:token');
@@ -120,9 +101,9 @@ async function signIn({ email, password }) {
     }
   }
 
-  async function updatePassword({ currentPassword, newPassword }) {
+  async function updatePassword(passwords) {
     try {
-      await api.put('/users/password', { currentPassword, newPassword });
+      await api.put('/users/password', passwords);
 
       toast({
         title: "Senha atualizada",
