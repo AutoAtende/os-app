@@ -41,6 +41,19 @@ export function AuthProvider({ children }) {
     loadStorageData();
   }, [toast]);
 
+  // No AuthContext
+    useEffect(() => {
+      const token = localStorage.getItem('@EquipmentManagement:token');
+      const user = localStorage.getItem('@EquipmentManagement:user');
+
+      if (token && user) {
+        api.defaults.headers.authorization = `Bearer ${token}`;
+        setUser(JSON.parse(user));
+      }
+      
+      setLoading(false);
+    }, []);
+
   async function signIn({ email, password }) {
     try {
       const response = await api.post('/auth/login', { email, password });

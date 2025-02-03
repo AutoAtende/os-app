@@ -36,6 +36,9 @@ const Layout = () => {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
+  console.log('Current location:', location.pathname);
+console.log('User:', user);
+
   const menuItems = [
     { text: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" />, path: '/dashboard' },
     { text: 'Equipamentos', icon: <Wrench className="w-4 h-4" />, path: '/equipamentos' },
