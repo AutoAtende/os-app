@@ -2,7 +2,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
-import Login from '../pages/Login';
+import Login from '../pages/Login/Login';
 
 // Páginas
 import Dashboard from '../pages/Dashboard';
