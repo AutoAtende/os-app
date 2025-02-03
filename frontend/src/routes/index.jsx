@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import Layout from '@/components/Layout';
+import { Loader2 } from "lucide-react";
 import ErrorBoundary from '@/components/ErrorBoundary';
 
 // Lazy loading das páginas
